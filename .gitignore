@@ -1,0 +1,18 @@
+# --- secrets: never commit ---
+.env
+.env.*
+!.env.example
+Secrets.xcconfig
+
+# --- supplied hackathon data: use on the day only, never commit or republish ---
+data/
+*.csv
+
+# --- dependencies / build ---
+node_modules/
+.vercel/
+
+# --- local test artefacts (listing screenshots stay local) ---
+tools/shots/
+.DS_Store
+*.log
