@@ -1,0 +1,9 @@
+{
+  "name": "mbx-tools",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only helpers: open real listings in Chromium with the unpacked extension loaded.",
+  "devDependencies": {
+    "playwright": "^1.65.0"
+  }
+}
