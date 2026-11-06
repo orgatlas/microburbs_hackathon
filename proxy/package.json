@@ -1,0 +1,20 @@
+{
+  "name": "microburbs-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tiny proxy that holds the Microburbs API key and answers GET /lookup?address=... for the Chrome extension.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "mock": "MOCK=1 node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "express": "^5.3.0"
+  }
+}
