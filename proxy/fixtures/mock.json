@@ -1,0 +1,96 @@
+{
+  "_comment": "MOCK: invented values shaped like the documented Microburbs envelopes; not API output.",
+  "geocode": {
+    "default": {
+      "data": [
+        { "abbr": "26 TUDOR ST PADDINGTON", "display_name": "26 Tudor Street, Paddington", "id": "GAQLD155000026", "name": "26 Tudor Street, Paddington", "property_type": "house" },
+        { "abbr": "26 TUDOR ST SURRY HILLS", "display_name": "26 Tudor Street, Surry Hills", "id": "GANSW705970502", "name": "26 Tudor Street, Surry Hills", "property_type": "unit" },
+        { "abbr": "26 TUDOR ST HAMILTON", "display_name": "26 Tudor Street, Hamilton", "id": "GANSW706000026", "name": "26 Tudor Street, Hamilton", "property_type": "house" }
+      ]
+    },
+    "nodata": {
+      "data": [
+        { "abbr": "1 EXAMPLE LANE ULTIMO", "display_name": "1 Example Lane, Ultimo", "id": "GANSW700000001", "name": "1 Example Lane, Ultimo", "property_type": "house" }
+      ]
+    },
+    "bondi": {
+      "data": [
+        { "abbr": "10 CAMPBELL PDE BONDI BEACH", "display_name": "10 Campbell Parade, Bondi Beach", "id": "GANSW710000010", "name": "10 Campbell Parade, Bondi Beach", "property_type": "unit" },
+        { "abbr": "10 CAMPBELL PDE MANLY WEST", "display_name": "10 Campbell Parade, Manly West", "id": "GAQLD160000010", "name": "10 Campbell Parade, Manly West", "property_type": "house" }
+      ]
+    },
+    "zzzz": { "data": [] }
+  },
+  "properties": {
+    "GANSW705970502": {
+      "basics/all": {
+        "data": { "bed_count": 2, "bath_count": 1, "parking_count": 1, "dwelling_type": "unit", "land_area_sqm": null }
+      },
+      "valuation/avm": {
+        "data": { "predicted_price": 1125000, "predicted_price_low": 985000, "predicted_price_high": 1270000, "prediction_date": "2026-10-19", "confidence_score": 68 }
+      },
+      "comparables/recent-sales-nearby": {
+        "data": [
+          { "address": "3/45 Fitzroy Street, Surry Hills", "bathrooms": 1, "bedrooms": 2, "date_sold": "2026-06-21", "dist_km": 0.41, "garage_spaces": 1, "gnaf_pid": "GANSW799000101", "latitude": -33.8847, "longitude": 151.2134, "price": 905000, "property_type": "unit", "property_type_raw": "Unit", "land_size": null },
+          { "address": "8/22 Tudor Street, Surry Hills", "bathrooms": 1, "bedrooms": 2, "date_sold": "2026-09-02", "dist_km": 0.065, "garage_spaces": 1, "gnaf_pid": "GANSW799000102", "latitude": -33.8873, "longitude": 151.2104, "price": 1090000, "property_type": "unit", "property_type_raw": "Unit", "land_size": null },
+          { "address": "17/301 Bourke Street, Surry Hills", "bathrooms": 2, "bedrooms": 2, "date_sold": "2026-07-30", "dist_km": 0.22, "garage_spaces": 1, "gnaf_pid": "GANSW799000103", "latitude": -33.8849, "longitude": 151.2098, "price": 1180000, "property_type": "unit", "property_type_raw": "Apartment", "land_size": null },
+          { "address": "2/14 Little Riley Street, Surry Hills", "bathrooms": 1, "bedrooms": 1, "date_sold": "2026-08-15", "dist_km": 0.12, "garage_spaces": 0, "gnaf_pid": "GANSW799000104", "latitude": -33.8860, "longitude": 151.2090, "price": 760000, "property_type": "unit", "property_type_raw": "Unit", "land_size": null },
+          { "address": "11 Marlborough Street, Surry Hills", "bathrooms": 2, "bedrooms": 3, "date_sold": "2026-05-10", "dist_km": 0.9, "garage_spaces": 0, "gnaf_pid": "GANSW799000105", "latitude": -33.8918, "longitude": 151.2176, "price": 2150000, "property_type": "house", "property_type_raw": "Terrace", "land_size": 120 },
+          { "address": "6/50 Albion Street, Surry Hills", "bathrooms": 1, "bedrooms": 2, "date_sold": "2026-10-03", "dist_km": 0.3, "garage_spaces": 1, "gnaf_pid": "GANSW799000106", "latitude": -33.8847, "longitude": 151.2079, "price": 1015000, "property_type": "unit", "property_type_raw": "Unit", "land_size": null }
+        ]
+      },
+      "rent-history-latest": {
+        "data": { "date": "2026-08-14", "price": 820, "type": "For Rent", "address": "26 Tudor Street" }
+      },
+      "transport/nearby": {
+        "data": { "center_lat": -33.8869, "center_lng": 151.2098, "gnaf_id": "GANSW705970502", "radius_m": 1000, "counts": {}, "nearest": {} }
+      }
+    }
+  },
+  "suburbs": {
+    "Surry Hills": {
+      "development/da-list": {
+        "data": [
+          { "area_name": "41 Fitzroy Street", "area_level": "address", "suburb": "Surry Hills", "description": "Alterations and additions to an existing terrace house including a rear dormer and roof terrace. D/2026/0981", "date": "2026-10-02", "category": "Alterations and additions", "lat": -33.8835, "lng": 151.2141 },
+          { "area_name": "3 Little Riley Street", "area_level": "address", "suburb": "Surry Hills", "description": "Change of use of a ground floor shop to a cafe with outdoor seating, 7am to 10pm. D/2026/0744", "date": "2026-08-19", "category": "Change of Use", "lat": -33.8858, "lng": 151.2104 },
+          { "area_name": "30 Tudor Street", "area_level": "address", "suburb": "Surry Hills", "description": "Demolition of a rear structure and construction of a two-storey rear dwelling. D/2026/0512", "date": "2026-06-05", "category": "New Dwelling", "lat": -33.8880, "lng": 151.2075 },
+          { "area_name": "500 Crown Street", "area_level": "address", "suburb": "Surry Hills", "description": "Installation of illuminated business identification signage. D/2025/1290", "date": "2025-11-12", "category": "Signage", "lat": null, "lng": null },
+          { "area_name": "120 Commonwealth Street", "area_level": "address", "suburb": "Surry Hills", "description": "Internal alterations to residential flat building common areas and a lift upgrade. D/2024/0233", "date": "2024-03-28", "category": "Alterations and additions", "lat": -33.8812, "lng": 151.2101 }
+        ]
+      }
+    }
+  },
+  "suburbs_list": {
+    "data": [
+      { "suburb": "Alexandria", "state": "New South Wales" },
+      { "suburb": "Barangaroo", "state": "New South Wales" },
+      { "suburb": "Beaconsfield (NSW)", "state": "New South Wales" },
+      { "suburb": "Camperdown (NSW)", "state": "New South Wales" },
+      { "suburb": "Centennial Park (NSW)", "state": "New South Wales" },
+      { "suburb": "Chippendale", "state": "New South Wales" },
+      { "suburb": "Darlinghurst", "state": "New South Wales" },
+      { "suburb": "Darlington (Sydney - NSW)", "state": "New South Wales" },
+      { "suburb": "Dawes Point", "state": "New South Wales" },
+      { "suburb": "Elizabeth Bay", "state": "New South Wales" },
+      { "suburb": "Erskineville", "state": "New South Wales" },
+      { "suburb": "Eveleigh", "state": "New South Wales" },
+      { "suburb": "Forest Lodge", "state": "New South Wales" },
+      { "suburb": "Glebe (NSW)", "state": "New South Wales" },
+      { "suburb": "Haymarket", "state": "New South Wales" },
+      { "suburb": "Millers Point", "state": "New South Wales" },
+      { "suburb": "Moore Park", "state": "New South Wales" },
+      { "suburb": "Potts Point", "state": "New South Wales" },
+      { "suburb": "Pyrmont", "state": "New South Wales" },
+      { "suburb": "Redfern", "state": "New South Wales" },
+      { "suburb": "Rosebery (NSW)", "state": "New South Wales" },
+      { "suburb": "Rushcutters Bay", "state": "New South Wales" },
+      { "suburb": "Surry Hills", "state": "New South Wales" },
+      { "suburb": "Sydney", "state": "New South Wales" },
+      { "suburb": "The Rocks (Sydney - NSW)", "state": "New South Wales" },
+      { "suburb": "Ultimo", "state": "New South Wales" },
+      { "suburb": "Waterloo (NSW)", "state": "New South Wales" },
+      { "suburb": "Woolloomooloo", "state": "New South Wales" },
+      { "suburb": "Zetland", "state": "New South Wales" }
+    ]
+  }
+}
