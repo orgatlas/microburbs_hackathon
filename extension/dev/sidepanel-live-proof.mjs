@@ -1,5 +1,8 @@
-// Dev-only proof: the side panel on LIVE proxy data (README Contract 2) beside a real listing,
+// Dev-only proof: the side panel on LIVE proxy data (README Contract 2) beside a real listing with NO
+// profile saved (no default persona: the panel must show the matched address and "Take the quiz to see
+// your fit", one button to the website quiz, no speedo, sliders, pros/cons or numbers, empty badge),
 // then the same listing with the proxy unreachable (the panel must say "Backend offline — retry").
+// Nothing writes chrome.storage.local.profile here.
 // Needs the team proxy on http://localhost:3000 with a valid key. Live Domain/realestate block
 // automated Chromium, so the listing's real archived markup is served at its real URL (page
 // scripts blocked); only the address is read from it. Nothing from the page is written to disk.
@@ -11,6 +14,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { pathToFileURL } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..");
@@ -21,6 +25,7 @@ const LISTING = (args[0] || "https://www.domain.com.au/59-portman-street-zetland
 const SNAP = args[1] || "20251219094851";
 const SHOTS = path.join(ROOT, "tools", "shots");
 const OFFLINE_BASE = "http://localhost:3999";
+const { SITE_URL } = await import(pathToFileURL(path.join(EXT, "src", "config.js")).href);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const failures = [];
 const check = (name, ok, detail = "") => {
@@ -87,6 +92,9 @@ async function openListing({ ctx, sw, extId }) {
   const panel = await ctx.newPage();
   await panel.setViewportSize({ width: 360, height: 900 });
   await panel.goto(`chrome-extension://${extId}/sidepanel/index.html?tabId=${tabId}`);
+  // Harness race: a panel opened in the same instant as the first record can miss it; reload once.
+  const left = await panel.waitForFunction(() => document.querySelector("#view")?.dataset.state !== "empty", null, { timeout: 8000 }).then(() => true, () => false);
+  if (!left) await panel.reload();
   return { page, panel, tabId, h1 };
 }
 
@@ -104,43 +112,74 @@ async function sideBySide(ctx, listingPng, panelPng, out) {
   const live = await launch(EXT, "mm-live-");
   const { page, panel, tabId, h1 } = await openListing(live);
   const ok = await panel.waitForSelector('#view[data-state="matched"]', { timeout: 60000 }).then(() => true, () => false);
-  const midSweep = await panel.screenshot({ type: "png" }); // needle still sweeping up from 0
-  await sleep(1800);
+  await sleep(1500);
+  const stored = await live.sw.evaluate(() => chrome.storage.local.get("profile").then((g) => g.profile ?? null));
   const info = await panel.evaluate(() => {
-    const s = document.querySelector(".mm-speedo");
+    const visible = (n) => (typeof n.checkVisibility === "function" ? n.checkVisibility() : n.getClientRects().length > 0);
+    const view = document.querySelector("#view");
+    const result = view?.querySelector('[data-for="matched"]');
+    const cta = document.querySelector('.mm-quiz-cta[data-state="no-profile"]');
+    // Digits in the matched view outside the address lines (the address itself carries street numbers).
+    const addressBits = ["address", "listing", "confidence"].map((b) => document.querySelector(`[data-bind="${b}"]`)?.innerText || "");
+    let rest = result ? result.innerText : "";
+    for (const bit of addressBits) if (bit) rest = rest.split(bit).join(" ");
     return {
-      state: document.querySelector("#view")?.dataset.state,
+      state: view?.dataset.state,
       matched: document.querySelector('[data-bind="address"]')?.textContent?.trim(),
       listing: document.querySelector('[data-bind="listing"]')?.textContent?.trim(),
-      fit: s?.dataset.fit, band: s?.dataset.band,
+      ctaVisible: Boolean(cta && visible(cta)),
+      ctaTitle: cta?.querySelector(".mm-quiz-cta__title")?.textContent?.trim() || null,
+      ctaButtons: cta ? cta.querySelectorAll("button").length : 0,
+      quizButton: Boolean(cta?.querySelector('button[data-action="open-quiz"]')),
+      speedo: [...document.querySelectorAll(".mm-speedo, .mm-score")].filter(visible).length,
+      sliders: [...document.querySelectorAll(".mm-slider")].filter(visible).length,
+      prosCons: [...document.querySelectorAll('[data-kind="halo"], [data-kind="failo"], .mm-halo')].filter(visible).length,
+      profileBar: [...document.querySelectorAll(".mm-profile")].filter(visible).length,
+      digitsOutsideAddress: (rest.match(/\d/g) || []).length,
+      restText: rest.replace(/\s+/g, " ").trim(),
+      asof: document.querySelector('[data-bind="asof"]')?.textContent || "",
+      exampleText: /\bexample\b|\bsarah\b/i.test(document.body.innerText),
       mockElement: Boolean(document.querySelector(".mm-mock")),
       mockText: /\bmock\b/i.test(document.body.innerText),
       placeholder: document.getElementById("mm-typeit-input")?.getAttribute("placeholder"),
-      halos: [...document.querySelectorAll('li[data-kind="halo"]')].map((li) => li.dataset.signal),
-      failos: [...document.querySelectorAll('li[data-kind="failo"]')].map((li) => li.dataset.signal),
-      sliders: [...document.querySelectorAll(".mm-slider")].map((r) => `${r.dataset.dim}:${r.dataset.score}`),
     };
   });
   const record = await live.sw.evaluate((id) => chrome.storage.session.get(`tab:${id}`).then((g) => g[`tab:${id}`]), tabId);
   const badge = await live.sw.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId).catch(() => null);
-  console.log(JSON.stringify({ ok, h1, tabId, badge, contract: record?.contract, ...info }, null, 1));
+  console.log(JSON.stringify({ ok, h1, tabId, badge, storedProfile: stored, contract: record?.contract, ...info }, null, 1));
+  check("live: no profile in chrome.storage.local", stored === null, JSON.stringify(stored));
   check("live: panel reaches the matched state", ok && info.state === "matched");
   check("live: answer is README Contract 2 from the proxy", record?.contract === 2 && Boolean(record?.matched?.gnaf_id));
   check("live: matched address shown", Boolean(info.matched), info.matched);
-  check("live: fit is a number", Number.isFinite(Number(info.fit)) && info.fit !== "" && info.fit !== undefined, String(info.fit));
-  check("live: pillar sliders rendered", info.sliders.length > 0, info.sliders.join(" "));
+  check("live: 'Take the quiz to see your fit' shown", info.ctaVisible && info.ctaTitle === "Take the quiz to see your fit", String(info.ctaTitle));
+  check("live: exactly one button in the quiz state, and it opens the quiz", info.ctaButtons === 1 && info.quizButton, String(info.ctaButtons));
+  check("live: no speedo", info.speedo === 0, String(info.speedo));
+  check("live: no sliders", info.sliders === 0, String(info.sliders));
+  check("live: no pros/cons", info.prosCons === 0, String(info.prosCons));
+  check("live: no profile summary bar", info.profileBar === 0, String(info.profileBar));
+  check("live: no numbers outside the address", info.digitsOutsideAddress === 0, info.restText);
+  check("live: no fetched-at stamp", info.asof === "", info.asof);
+  check("live: no 'Example' / 'Sarah' anywhere", !info.exampleText);
+  check("live: badge empty without a profile", badge === "", JSON.stringify(badge));
   check("live: no .mm-mock element", !info.mockElement);
   check("live: no 'mock' text anywhere in the panel", !info.mockText);
   check("live: neutral type-it placeholder", info.placeholder === "Street address and suburb", info.placeholder);
 
   const listingPng = await page.screenshot({ type: "png" });
-  // The type-it box can take focus and scroll the panel; show the top (address, speedo, verdict).
   await panel.evaluate(() => { document.activeElement?.blur?.(); document.scrollingElement?.scrollTo(0, 0); window.scrollTo(0, 0); });
   await sleep(300);
   const finalPanel = await panel.screenshot({ type: "png" });
-  fs.writeFileSync(path.join(SHOTS, "proof-live-sidepanel-full.png"), await panel.screenshot({ type: "png", fullPage: true }));
-  await sideBySide(live.ctx, listingPng, finalPanel, path.join(SHOTS, "proof-live-sidepanel.png"));
-  fs.writeFileSync(path.join(SHOTS, "proof-live-sidepanel-midsweep.png"), midSweep);
+  fs.writeFileSync(path.join(SHOTS, "proof-no-profile-panel.png"), finalPanel);
+  await sideBySide(live.ctx, listingPng, finalPanel, path.join(SHOTS, "proof-no-profile.png"));
+
+  // The one button opens the website quiz in a new tab (chrome.tabs.create).
+  const opened = live.ctx.waitForEvent("page", { timeout: 15000 }).catch(() => null);
+  await panel.click('.mm-quiz-cta button[data-action="open-quiz"]', { timeout: 5000 }).catch(() => {});
+  const quizTab = await opened;
+  if (quizTab) await quizTab.waitForURL((u) => u.href.startsWith(`${SITE_URL}/quiz`), { timeout: 10000 }).catch(() => {});
+  const tabUrls = await live.sw.evaluate(() => chrome.tabs.query({}).then((ts) => ts.map((t) => t.pendingUrl || t.url))).catch(() => []);
+  const quizUrl = [quizTab?.url() || "", ...tabUrls].find((u) => u.startsWith(`${SITE_URL}/quiz`)) || `${quizTab?.url() || ""} | ${tabUrls.join(" ")}`;
+  check("live: the button opens SITE_URL/quiz", quizUrl.startsWith(`${SITE_URL}/quiz`), quizUrl);
   await live.ctx.close();
 }
 
