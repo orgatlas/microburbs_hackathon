@@ -2,9 +2,21 @@ globalThis.MBX = globalThis.MBX || {};
 
 /*
  * Listing Check side panel.
- * MBX.createPanel({ onSubmitAddress(text), onRetry(), onClose() }) -> { setState(state), destroy() }
- * Renders into an open shadow root on <div id="mbx-root">. DOM is built with
- * createElement + textContent only: nothing from the page or the API is ever parsed as HTML.
+ * MBX.createPanel(handlers) -> { setState(state), updateScore(score, profile), destroy() }
+ *   handlers: onSubmitAddress(text)            type-it box / address forms (content.js looks it up, source "typed")
+ *             onPickCandidate({display_name, gnaf_id})   "Not this one?" pick (content.js looks it up, source "picked")
+ *             onProfileSave(profile)            the profile block saved (content.js re-scores, or re-looks-up if work moved)
+ *             onRetry(), onClose()
+ *   state:    { kind: 'detecting' } | { kind: 'need_address', reason, prefill? } | { kind: 'loading', address, source }
+ *             | { kind: 'error', address, source, message, detail }
+ *             | { kind: 'result', address, source, blob, score?, profile? }
+ *               blob = proxy /lookup body (blob.facts when status ok); score = MBX.score.scoreListing(blob.facts, profile),
+ *               computed by content.js so income and budget never leave the browser.
+ *   updateScore(score, profile) re-draws meter, verdict, halos/failos, profile and pill in place (no re-mount, no lookup).
+ * The result:ok body is panel/panel.html's #mbx-result-template, styled by panel/panel.css plus the components' own CSS
+ * (meter.js, halos.js, profile.js), all adopted as constructable stylesheets. background.js reads both files (MBX_ASSETS).
+ * Renders into an open shadow root on <div id="mbx-root">. DOM is built with createElement + textContent only;
+ * the one HTML parse is of our own panel.html template: nothing from the page or the API is ever parsed as HTML.
  */
 (function () {
   'use strict';
@@ -13,7 +25,8 @@ globalThis.MBX = globalThis.MBX || {};
   var HOST_ID = 'mbx-root';
   var DASH = '–';
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var SOURCE_LABELS = { 'json-ld': 'JSON-LD', h1: 'page heading', title: 'page title', typed: 'your input' };
+  var SOURCE_LABELS = { 'json-ld': 'JSON-LD', h1: 'page heading', title: 'page title', typed: 'your input', picked: 'your pick' };
+  var BAND_WORDS = { halo: 'Halo', meh: 'Meh', failo: 'Failo' };
   var PLACEHOLDER = 'e.g. 26 Tudor Street, Surry Hills NSW 2010';
 
   var CSS = [
@@ -304,6 +317,59 @@ globalThis.MBX = globalThis.MBX || {};
     return out;
   }
 
+  /* ---------- result view assets: panel/panel.html template + panel/panel.css (read by background.js) ---------- */
+
+  var assets = null; // { tpl: Element (.mbx-body), sheets: CSSStyleSheet[] | null, cssText: string }
+  var assetsP = null;
+  var assetsError = null;
+
+  function cssOf(name) {
+    var c = MBX[name];
+    return c && isStr(c.css) ? c.css : '';
+  }
+  function sheetFrom(text) {
+    try {
+      if (typeof CSSStyleSheet === 'function' && 'replaceSync' in CSSStyleSheet.prototype) {
+        var sh = new CSSStyleSheet();
+        sh.replaceSync(String(text || ''));
+        return sh;
+      }
+    } catch (e) { /* fall back to <style> */ }
+    return null;
+  }
+  function loadAssets() {
+    if (assets) return Promise.resolve(assets);
+    if (assetsP) return assetsP;
+    assetsP = new Promise(function (resolve) {
+      try {
+        chrome.runtime.sendMessage({ type: 'MBX_ASSETS' }, function (res) {
+          var err = chrome.runtime.lastError;
+          resolve(err ? { ok: false, message: 'Could not read the panel files.', detail: String(err.message || err) } : res);
+        });
+      } catch (e) {
+        resolve({ ok: false, message: 'The extension was reloaded. Reload this page.', detail: String((e && e.message) || e) });
+      }
+    }).then(function (res) {
+      assetsP = null;
+      try {
+        if (!res || !res.ok || !isStr(res.html)) throw new Error((res && res.message) || 'Could not read the panel files.');
+        var doc = new DOMParser().parseFromString(res.html, 'text/html');
+        var tpl = doc.getElementById('mbx-result-template');
+        var first = tpl && tpl.content && tpl.content.firstElementChild;
+        if (!first) throw new Error('The panel template is missing.');
+        var parts = [String(res.css || ''), cssOf('meter'), cssOf('halos'), cssOf('profile')];
+        var sheets = [];
+        parts.forEach(function (t) { var sh = sheetFrom(t); if (sh) sheets.push(sh); });
+        assets = { tpl: first, sheets: sheets.length === parts.length ? sheets : null, cssText: parts.join('\n') };
+        assetsError = null;
+      } catch (e) {
+        assetsError = String((e && e.message) || e);
+      }
+      return assets;
+    });
+    return assetsP;
+  }
+
   /* ---------- the panel ---------- */
 
   MBX.createPanel = function (handlers) {
@@ -313,7 +379,9 @@ globalThis.MBX = globalThis.MBX || {};
 
     var host = document.createElement('div');
     host.id = HOST_ID;
-    var root = host.attachShadow({ mode: 'open' });
+    // Closed: the listing site's own scripts (analytics, session replay) cannot read the profile figures shown in
+    // the panel through host.shadowRoot. Open only when the caller asks (dev preview, e2e harness via "mbx.dev").
+    var root = host.attachShadow({ mode: handlers.shadowMode === 'open' ? 'open' : 'closed' });
     applyStyles(root);
 
     var uid = 0;
@@ -321,7 +389,11 @@ globalThis.MBX = globalThis.MBX || {};
     var collapsed = false;
     var current = { kind: 'detecting' };
     var afterRender = [];
+    var mounts = []; // run synchronously once the body is in the shadow root (components measure and animate)
     var layoutProbes = []; // re-run on expand: a collapsed (display:none) panel measures 0
+    var live = null; // mounted result view: { el, meter, halos, profile, verdict, fetchedAt }
+    var resultStylesOn = false;
+    var assetsFailedFor = null;
 
     function call(name, arg) {
       var fn = handlers[name];
@@ -359,6 +431,29 @@ globalThis.MBX = globalThis.MBX || {};
     root.appendChild(pill);
     root.appendChild(status);
     document.documentElement.appendChild(host);
+    loadAssets(); // warm: the template is usually ready before the first answer comes back
+
+    function useResultStyles() {
+      if (resultStylesOn || !assets) return;
+      resultStylesOn = true;
+      var done = false;
+      if (assets.sheets && 'adoptedStyleSheets' in root) {
+        try {
+          root.adoptedStyleSheets = Array.prototype.slice.call(root.adoptedStyleSheets).concat(assets.sheets);
+          done = true;
+        } catch (e) { /* fall back to <style> */ }
+      }
+      if (!done) {
+        var st = document.createElement('style');
+        st.textContent = assets.cssText;
+        root.appendChild(st);
+      }
+      // Markers only: meter.js and halos.js look for these and then skip adding a second copy of their CSS.
+      var mk = document.createElement('style');
+      mk.setAttribute('data-mbx', 'markers');
+      mk.textContent = '/*mbx-meter*/ /* mbx-halos */';
+      root.appendChild(mk);
+    }
 
     function setCollapsed(next, moveFocus) {
       collapsed = !!next;
@@ -450,219 +545,218 @@ globalThis.MBX = globalThis.MBX || {};
       }));
     }
 
-    function matchSection(blob, s) {
-      var m = blob.match || {};
+    /* ----- result:ok view (panel/panel.html template) ----- */
+
+    function bandWord(b) { return BAND_WORDS[b] || null; }
+
+    function checkInfo(m, blob) {
       var check = m.check || null;
-      var listing = isStr(s.address) ? s.address.trim() : (isStr(blob.query) ? blob.query : null);
-      var src = SOURCE_LABELS[s.source] || (isStr(s.source) ? s.source : null);
-      var kids = [
-        h('p', { class: 'home', text: isStr(m.display_name) ? m.display_name : DASH }),
-        listing ? h('p', { class: 'meta' }, ['Listing: ' + listing, src ? ' ' : null, src ? h('span', { class: 'nowrap', text: '· from ' + src }) : null]) : null
-      ];
-
+      var notes = check && Array.isArray(check.notes) ? check.notes.filter(isStr) : [];
+      var kind = null;
+      var head = '';
       if (check && isStr(check.verdict)) {
-        var notes = Array.isArray(check.notes) ? check.notes.filter(isStr) : [];
-        if (check.verdict === 'exact') {
+        kind = check.verdict === 'exact' || check.verdict === 'partial' ? check.verdict : 'weak';
+        if (kind === 'exact') {
           var allAgree = check.number !== false && check.street === true && check.suburb === true;
-          kids.push(h('p', { class: 'exact' }, [
-            h('b', { text: 'Exact match' }),
-            allAgree ? h('span', { class: 'muted', text: ' · ' + (check.number === true ? 'number, street and suburb agree' : 'street and suburb agree') }) : null
-          ]));
-          if (notes.length) kids.push(h('ul', { class: 'cands tiny muted mt4' }, notes.map(function (n) { return h('li', { text: n }); })));
-        } else {
-          var headline = check.verdict === 'partial'
-            ? 'Close match: check the unit/number'
-            : 'Weak match: check this is the right home';
-          kids.push(h('div', { class: 'warn', role: 'note' }, [
-            h('b', { text: headline }),
-            notes.length ? h('ul', { class: 'mt4' }, notes.map(function (n) { return h('li', { text: n }); })) : null
-          ]));
-        }
+          head = 'Exact match' + (allAgree ? ' · ' + (check.number === true ? 'number, street and suburb agree' : 'street and suburb agree') : '');
+        } else if (kind === 'partial') head = 'Close match: check the unit/number';
+        else head = 'Weak match: check this is the right home';
       }
-
       if (isNum(m.rank) && m.rank > 1) {
-        var n = Math.round(m.rank) - 1;
         var cands = Array.isArray(blob.candidates) ? blob.candidates : [];
         var idx = -1;
         for (var i = 0; i < cands.length; i++) { if (cands[i] && cands[i].gnaf_id === m.gnaf_id) { idx = i; break; } }
-        var before = idx >= 0 ? cands.slice(0, idx) : cands.slice(0, n);
-        // Only claim "outside the City of Sydney" when every skipped candidate was.
-        var outside = before.filter(function (c) { return c && c.in_coverage === false; }).length;
-        var k = before.length || n;
-        var why = before.length && outside === before.length ? ' outside the City of Sydney'
-          : before.length ? ' (reasons below)' : '';
-        kids.push(h('div', { class: 'skipped' }, [
-          h('p', { class: 'tiny muted', text: 'Skipped ' + k + ' higher-ranked result' + (k === 1 ? '' : 's') + why }),
-          candidateList(before)
-        ]));
+        var before = idx >= 0 ? cands.slice(0, idx) : [];
+        var k = before.length || Math.round(m.rank) - 1;
+        var outside = before.length && before.every(function (c) { return c && c.in_coverage === false; });
+        notes.push('skipped ' + k + ' higher-ranked result' + (k === 1 ? '' : 's') + (outside ? ' outside the City of Sydney' : ''));
+      }
+      var text = [head].concat(notes).filter(isStr).join(' · ');
+      return { kind: kind, text: text };
+    }
+
+    function scoreAttrs(el, sc, profile) {
+      var mode = sc && isStr(sc.mode) ? sc.mode
+        : (profile && profile.budget && isStr(profile.budget.mode) ? profile.budget.mode : '');
+      el.setAttribute('data-total', sc && isNum(sc.total) ? String(Math.round(sc.total)) : '');
+      el.setAttribute('data-band', sc && isStr(sc.band) ? sc.band : '');
+      el.setAttribute('data-blank', sc && Array.isArray(sc.blank) ? sc.blank.join(',') : '');
+      el.setAttribute('data-mode', mode);
+    }
+    function meterProps(sc) {
+      return {
+        total: sc && isNum(sc.total) ? sc.total : null,
+        band: sc && isStr(sc.band) ? sc.band : null,
+        coverage: sc && sc.coverage ? sc.coverage : { scored: 0, of: 6 }
+      };
+    }
+    function verdictText(sc) {
+      if (!MBX.meter || typeof MBX.meter.verdict !== 'function') return '';
+      return MBX.meter.verdict({
+        halos: sc && Array.isArray(sc.halos) ? sc.halos : [],
+        failos: sc && Array.isArray(sc.failos) ? sc.failos : [],
+        total: sc && isNum(sc.total) ? sc.total : null,
+        band: sc && isStr(sc.band) ? sc.band : null
+      });
+    }
+    // Middle-band dimensions as halo-style items (label = dimension name), picked first, then score desc.
+    function mehItems(sc) {
+      if (!sc || !Array.isArray(sc.dimensions)) return [];
+      return sc.dimensions
+        .filter(function (d) { return d && d.band === 'meh' && isNum(d.score); })
+        .sort(function (a, b) { return (b.picked === true) - (a.picked === true) || b.score - a.score; })
+        .map(function (d) {
+          return {
+            key: d.key, kind: 'meh', label: isStr(d.label) ? d.label : d.key,
+            number: d.fact && isStr(d.fact.display) ? d.fact.display : null, score: d.score,
+            via: Array.isArray(d.via) ? d.via : [], as_of: isStr(d.as_of) ? d.as_of : null, picked: d.picked === true
+          };
+        });
+    }
+    function halosProps(sc) {
+      return {
+        halos: sc && Array.isArray(sc.halos) ? sc.halos : [],
+        failos: sc && Array.isArray(sc.failos) ? sc.failos : [],
+        meh: mehItems(sc),
+        // {key, reason} per blank dimension, so the panel says why ("Set a budget or income").
+        blank: sc && Array.isArray(sc.dimensions)
+          ? sc.dimensions.filter(function (d) { return d && d.score === null && isStr(d.key); })
+              .map(function (d) { return { key: d.key, reason: isStr(d.blank_reason) ? d.blank_reason : null }; })
+          : (sc && Array.isArray(sc.blank) ? sc.blank : []),
+        fetched_at: live ? live.fetchedAt : null
+      };
+    }
+    function warn(what, e) { console.warn('[Listing Check] ' + what + ' could not render', e); }
+
+    function mountScore(el, s, blob) {
+      var sc = s.score || null;
+      var facts = blob.facts && typeof blob.facts === 'object' ? blob.facts : null;
+      var meterSlot = el.querySelector('[data-slot="meter"]');
+      var halosSlot = el.querySelector('[data-slot="halos"]');
+      var profileSlot = el.querySelector('[data-slot="profile"]');
+      live = {
+        el: el, meter: null, halos: null, profile: null,
+        verdict: el.querySelector('[data-slot="verdict"]'),
+        fetchedAt: (facts && isStr(facts.fetched_at) ? facts.fetched_at : null) || (isStr(blob.fetched_at) ? blob.fetched_at : null)
+      };
+      scoreAttrs(el, sc, s.profile);
+      try { if (MBX.meter && meterSlot) live.meter = MBX.meter.render(meterSlot, meterProps(sc)); } catch (e) { warn('meter', e); }
+      try { if (live.verdict) live.verdict.textContent = verdictText(sc); } catch (e) { warn('verdict', e); }
+      try { if (MBX.halos && halosSlot) live.halos = MBX.halos.render(halosSlot, halosProps(sc)); } catch (e) { warn('halos', e); }
+      try {
+        if (MBX.profile && profileSlot && s.profile) {
+          live.profile = MBX.profile.render(profileSlot, s.profile, { onSave: function (p) { call('onProfileSave', p); } });
+        }
+      } catch (e) { warn('profile', e); }
+    }
+
+    function resultView(s, blob) {
+      var m = blob.match || {};
+      var el = document.importNode(assets.tpl, true);
+      function q(sel) { return el.querySelector(sel); }
+      var listing = isStr(s.address) ? s.address.trim() : (isStr(blob.query) ? blob.query : '');
+      var src = SOURCE_LABELS[s.source] || (isStr(s.source) ? s.source : null);
+
+      var nameEl = q('[data-bind="display_name"]');
+      if (nameEl) nameEl.textContent = isStr(m.display_name) ? m.display_name : DASH;
+      var lineEl = q('[data-bind="listing_line"]');
+      if (lineEl) lineEl.textContent = listing ? 'Listing: ' + listing + (src ? ' · from ' + src : '') : '';
+      var ci = checkInfo(m, blob);
+      var checkEl = q('[data-bind="check"]');
+      if (checkEl) {
+        checkEl.textContent = ci.text;
+        if (ci.kind) checkEl.classList.add('mbx-addr__check--' + ci.kind);
+      }
+      el.setAttribute('data-check', ci.kind || '');
+
+      // "Not this one?": other in-coverage candidates, then the type-it box.
+      var toggle = q('[data-action="not-this-one"]');
+      var picker = q('[data-slot="picker"]');
+      var list = q('[data-slot="picker-list"]');
+      var form = q('[data-slot="typeit"]');
+      var input = form ? form.querySelector('input') : null;
+      var others = (Array.isArray(blob.candidates) ? blob.candidates : []).filter(function (c) {
+        return c && c.in_coverage === true && isStr(c.display_name) && c.gnaf_id !== m.gnaf_id;
+      });
+      if (list) {
+        if (others.length) {
+          others.forEach(function (c) {
+            var b = h('button', { type: 'button', class: 'mbx-picker__item', 'data-gnaf': isStr(c.gnaf_id) ? c.gnaf_id : '', text: c.display_name });
+            b.addEventListener('click', function () {
+              call('onPickCandidate', { display_name: c.display_name, gnaf_id: isStr(c.gnaf_id) ? c.gnaf_id : null });
+            });
+            list.appendChild(h('li', null, b));
+          });
+        } else {
+          list.appendChild(h('li', { class: 'mbx-picker__empty', text: 'No other matches in the City of Sydney' }));
+        }
+      }
+      if (input) input.value = listing;
+      if (toggle && picker) {
+        toggle.addEventListener('click', function () {
+          var open = picker.hidden;
+          picker.hidden = !open;
+          toggle.setAttribute('aria-expanded', String(open));
+          if (open) {
+            var first = picker.querySelector('.mbx-picker__item') || input;
+            if (first) first.focus();
+          }
+        });
+      }
+      if (form && input) {
+        input.addEventListener('input', function () { input.removeAttribute('aria-invalid'); });
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var text = input.value.trim();
+          if (!text) {
+            input.setAttribute('aria-invalid', 'true');
+            input.focus();
+            return;
+          }
+          call('onSubmitAddress', text);
+        });
       }
 
-      var reveal = h('div', { hidden: true });
-      var form = addressForm({ value: listing });
-      reveal.appendChild(form);
-      var toggle = h('button', { type: 'button', class: 'textbtn', 'aria-expanded': 'false', text: 'Wrong home? Enter the address' });
-      toggle.addEventListener('click', function () {
-        var open = reveal.hidden;
-        reveal.hidden = !open;
-        toggle.setAttribute('aria-expanded', String(open));
-        if (open) { form._input.focus(); form._input.select(); }
-      });
-      kids.push(h('div', null, toggle), reveal);
-
-      return section('Matched home', kids);
+      mounts.push(function () { mountScore(el, s, blob); });
+      return el;
     }
 
-    function valuationSection(sec) {
-      return dataSection('Estimated value', sec, function (d) {
-        if (!(isNum(d.predicted_price) && d.predicted_price > 0)) {
-          return [
-            h('p', { class: 'nodata', text: 'No data' }),
-            h('p', { class: 'tiny muted mt4', text: 'No usable estimate for this property.' })
-          ];
-        }
-        var kids = [h('p', { class: 'value', text: money(d.predicted_price) })];
-        var lo = isNum(d.predicted_price_low) ? d.predicted_price_low : null;
-        var hi = isNum(d.predicted_price_high) ? d.predicted_price_high : null;
-        var rangeText = lo !== null && hi !== null ? 'Range ' + money(lo) + ' – ' + money(hi)
-          : hi !== null ? 'Up to ' + money(hi)
-          : lo !== null ? 'From ' + money(lo) : null;
-        if (rangeText) {
-          kids.push(h('p', { class: 'range', title: '80% range from the Microburbs automated valuation', text: rangeText }));
-        }
-        if (isNum(d.confidence_score)) {
-          var pct = Math.max(0, Math.min(100, Math.round(d.confidence_score)));
-          var fill = h('i');
-          fill.style.width = pct + '%';
-          kids.push(h('div', { class: 'conf' }, [
-            h('span', { class: 'clabel', text: 'Confidence ' + pct + '/100' }),
-            h('span', { class: 'bar', role: 'img', 'aria-label': 'Confidence ' + pct + ' out of 100' }, fill)
-          ]));
-        } else {
-          kids.push(h('p', { class: 'conf muted', text: 'Confidence not stated' }));
-        }
-        var dated = fmtDate(d.prediction_date);
-        kids.push(h('p', { class: 'small muted mt4', text: dated ? 'Estimate dated ' + dated : 'Estimate date not stated' }));
-        return kids;
-      });
-    }
-
-    function basicsSection(sec) {
-      return dataSection('Basics', sec, function (d) {
-        function part(n, unit) {
-          var t = countText(n);
-          return t !== null
-            ? h('span', { text: t + ' ' + unit })
-            : h('span', { class: 'na', title: 'Not advertised', text: DASH + ' ' + unit });
-        }
-        var facts = h('p', { class: 'facts' }, [
-          part(d.bed_count, 'bed'), ' · ', part(d.bath_count, 'bath'), ' · ', part(d.parking_count, 'car')
-        ]);
-        var extra = [];
-        var type = capitalise(d.dwelling_type);
-        if (type) extra.push(type);
-        if (isNum(d.land_area_sqm) && d.land_area_sqm > 0) {
-          extra.push('Land ' + Math.round(d.land_area_sqm).toLocaleString('en-AU') + ' m²');
-        }
-        if (countText(d.bed_count) === null && countText(d.bath_count) === null && countText(d.parking_count) === null) {
-          extra.unshift('Bedrooms, bathrooms and parking not advertised');
-        }
-        return [facts, extra.length ? h('p', { class: 'small muted mt4', text: extra.join(' · ') }) : null];
-      });
-    }
-
-    function salesSection(sec) {
-      return dataSection('Recent sales nearby', sec, function (list) {
-        if (!Array.isArray(list) || list.length === 0) {
-          return h('p', { class: 'muted', text: 'No recent sales nearby' });
-        }
-        return h('ol', null, list.slice(0, 3).map(function (s) {
-          s = s || {};
-          var dist = fmtKm(s.dist_km);
-          var sub = [
-            fmtMonth(s.date_sold),
-            dist ? dist + ' away' : null,
-            isNum(s.bedrooms) ? countText(s.bedrooms) + ' bed' : null
-          ].filter(Boolean).join(' · ');
-          var addr = shortAddr(s.address);
-          return h('li', { class: 'sale' }, [
-            h('div', { class: 'row' }, [
-              h('span', { class: 'grow', title: isStr(s.address) ? s.address : null, text: addr || 'Address not given' }),
-              h('span', { class: 'end price', text: money(s.price) })
-            ]),
-            h('p', { class: 'small muted', text: sub || DASH })
-          ]);
-        }));
-      });
-    }
-
-    function rentSection(sec) {
-      return dataSection('Latest rent', sec, function (d) {
-        if (!isNum(d.weekly_rent)) {
-          return h('p', { class: 'muted', text: 'No rent figure in the latest advert' });
-        }
-        var when = fmtDate(d.date);
-        return h('p', { class: 'row' }, [
-          h('span', { class: 'end rentv', text: wholeMoney(d.weekly_rent) + ' / week' }),
-          when ? h('span', { class: 'small muted', text: 'advertised ' + when }) : null
-        ]);
-      });
-    }
-
-    function daSection(sec) {
-      return dataSection('Development nearby', sec, function (d) {
-        var when = fmtDate(d.date);
-        var addr = shortAddr(d.address);
-        var loc;
-        if (d.basis === 'nearest') {
-          var dist = fmtMetres(d.distance_m);
-          loc = [dist ? dist + ' away' : null, addr].filter(Boolean).join(' · ');
-        } else if (d.basis === 'same_street') {
-          loc = ['On the same street', addr].filter(Boolean).join(' · ');
-        } else if (d.basis === 'latest_in_suburb') {
-          loc = 'Latest DA in ' + (suburbLabel(d.suburb) || 'this suburb');
-        } else {
-          loc = addr;
-        }
-        var kids = [
-          h('div', { class: 'row' }, [
-            h('span', { class: 'grow dacat', title: isStr(d.category) ? d.category : null, text: isStr(d.category) ? d.category : 'Development application' }),
-            when ? h('span', { class: 'end small muted', text: when }) : null
-          ]),
-          loc ? h('p', { class: 'small muted', text: loc }) : null
-        ];
-        if (isStr(d.description)) {
-          var desc = h('p', { class: 'desc clamp', text: d.description.trim() });
-          var more = h('button', { type: 'button', class: 'textbtn', hidden: true, 'aria-expanded': 'false', text: 'More' });
-          more.addEventListener('click', function () {
-            var expand = desc.classList.contains('clamp');
-            desc.classList.toggle('clamp', !expand);
-            more.textContent = expand ? 'Less' : 'More';
-            more.setAttribute('aria-expanded', String(expand));
-          });
-          var probe = function () {
-            if (desc.scrollHeight > desc.clientHeight + 1) more.hidden = false;
-          };
-          afterRender.push(probe);
-          layoutProbes.push(probe);
-          kids.push(desc, more);
-        }
-        return kids;
-      });
+    function updateScore(score, profile) {
+      if (destroyed) return;
+      if (current.kind !== 'result' || !current.blob || current.blob.status !== 'ok') return;
+      current = Object.assign({}, current, { score: score || null, profile: profile || current.profile || null });
+      if (!live) { render(); return; }
+      scoreAttrs(live.el, current.score, current.profile);
+      try { if (live.meter) live.meter.update(meterProps(current.score)); } catch (e) { warn('meter', e); }
+      try { if (live.verdict) live.verdict.textContent = verdictText(current.score); } catch (e) { warn('verdict', e); }
+      try { if (live.halos) live.halos.update(halosProps(current.score)); } catch (e) { warn('halos', e); }
+      try { if (live.profile && profile) live.profile.update(profile); } catch (e) { warn('profile', e); }
+      renderPill();
+      status.textContent = statusText(current);
     }
 
     /* ----- states ----- */
 
     function renderOk(s, blob) {
-      var secs = blob.sections || {};
-      return [
-        blob.mode === 'mock' ? h('p', { class: 'banner', text: 'Sample figures from fixtures, not this property.' }) : null,
-        matchSection(blob, s),
-        valuationSection(secs.valuation),
-        basicsSection(secs.basics),
-        salesSection(secs.sales),
-        rentSection(secs.rent),
-        daSection(secs.da)
-      ];
+      var banner = blob.mode === 'mock' ? h('p', { class: 'banner', text: 'Sample figures from fixtures, not this property.' }) : null;
+      if (assets) {
+        useResultStyles();
+        return [banner, resultView(s, blob)];
+      }
+      if (assetsFailedFor === s) {
+        return [banner, h('section', { class: 'sec' }, [
+          h('p', { class: 'lead err', text: 'Could not load the panel layout.' }),
+          isStr(assetsError) ? h('p', { class: 'tiny muted mt4', text: assetsError }) : null,
+          h('button', { type: 'button', class: 'btn ghost mt12', text: 'Retry', onclick: function () { assetsFailedFor = null; render(); } })
+        ])];
+      }
+      loadAssets().then(function (a) {
+        if (destroyed || current !== s) return;
+        if (!a) assetsFailedFor = s;
+        render();
+      });
+      return [banner, h('section', { class: 'sec', 'aria-busy': 'true' }, skeleton([30], true).concat(skeleton([64, 46])))];
     }
 
     function renderResult(s) {
@@ -745,8 +839,8 @@ globalThis.MBX = globalThis.MBX || {};
 
     function compactValue() {
       var b = current.kind === 'result' ? current.blob : null;
-      var v = b && b.status === 'ok' && b.sections && b.sections.valuation;
-      if (v && v.available === true && v.data && isNum(v.data.predicted_price) && v.data.predicted_price > 0) return money(v.data.predicted_price);
+      var sc = b && b.status === 'ok' ? current.score : null;
+      if (sc && isNum(sc.total)) return String(Math.round(sc.total)) + (bandWord(sc.band) ? ' ' + bandWord(sc.band) : '');
       return null;
     }
 
@@ -760,17 +854,24 @@ globalThis.MBX = globalThis.MBX || {};
         val ? h('span', { class: 'pv', text: val }) : null,
         mock ? h('span', { class: 'badge', text: 'Mock' }) : null
       ]);
-      pill.setAttribute('aria-label', 'Expand Listing Check' + (val ? ', estimated value ' + val : '') + (mock ? ', mock data' : ''));
+      pill.setAttribute('aria-label', 'Expand Listing Check' + (val ? ', fit score ' + val : '') + (mock ? ', mock data' : ''));
     }
 
     function render() {
       var active = root.activeElement;
       var hadFocus = !!(active && body.contains(active));
       afterRender = [];
+      mounts = [];
       layoutProbes = [];
+      live = null;
       badge.hidden = !(current.kind === 'result' && current.blob && current.blob.mode === 'mock');
       clear(body);
       add(body, renderState(current));
+      // result:ok carries its own footer ("Microburbs estimates, not advice"); the shell footer shows everywhere else.
+      foot.hidden = !!body.querySelector('.mbx-body');
+      var mj = mounts;
+      mounts = [];
+      mj.forEach(function (fn) { try { fn(); } catch (e) { warn('result view', e); } });
       body.scrollTop = 0;
       renderPill();
       var jobs = afterRender;
@@ -791,7 +892,7 @@ globalThis.MBX = globalThis.MBX || {};
         case 'error': return pre + 'lookup failed. ' + (isStr(s.message) ? s.message : '');
         case 'result':
           var st = s.blob && s.blob.status;
-          if (st === 'ok') { var v = compactValue(); return pre + 'estimate loaded' + (v ? ', ' + v : '') + '.'; }
+          if (st === 'ok') { var v = compactValue(); return pre + (v ? 'fit score ' + v + '.' : 'home matched, not enough data to score it.'); }
           if (st === 'no_match') return pre + 'no address match.';
           if (st === 'outside_coverage') return pre + 'this address is outside the City of Sydney.';
           return pre + 'lookup failed.';
@@ -818,7 +919,7 @@ globalThis.MBX = globalThis.MBX || {};
     }
 
     setState(current);
-    return { setState: setState, destroy: destroy };
+    return { setState: setState, updateScore: updateScore, destroy: destroy };
   };
 
   // Exposed for dev previews and quick checks; not part of the content-script contract.
