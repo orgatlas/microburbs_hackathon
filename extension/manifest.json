@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "MicroMatch",
+  "version": "0.1.0",
+  "description": "See how well a Sydney property matches your lifestyle, budget and safety needs.",
+  "permissions": ["storage", "sidePanel"],
+  "host_permissions": ["http://localhost:8000/*"],
+  "background": { "service_worker": "src/background.js", "type": "module" },
+  "action": { "default_title": "Open MicroMatch" },
+  "side_panel": { "default_path": "sidepanel/index.html" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.realestate.com.au/*", "https://www.domain.com.au/*"],
+      "js": ["src/address.js", "src/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

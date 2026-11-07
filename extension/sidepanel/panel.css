@@ -1,0 +1,10 @@
+body { font: 14px/1.45 system-ui, sans-serif; margin: 16px; color: #1b1b1b; }
+h1 { font-size: 16px; margin: 0 0 12px; }
+.score { font-size: 48px; font-weight: 700; line-height: 1; }
+.pillar { border-top: 1px solid #e5e5e5; padding: 10px 0; }
+.pillar summary { cursor: pointer; font-weight: 600; }
+.factor { margin: 8px 0 0; }
+.muted { color: #666; }
+button.candidate { display: block; width: 100%; text-align: left; margin: 4px 0; padding: 8px; }
+#manual { margin-top: 16px; border-top: 1px solid #e5e5e5; padding-top: 12px; }
+#manual input { width: 100%; box-sizing: border-box; padding: 6px; margin: 4px 0; }

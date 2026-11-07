@@ -1,0 +1,21 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+backend/db.sqlite3
+backend/staticfiles/
+backend/media/
+backend/.cache/
+
+# Node
+node_modules/
+.next/
+
+# Supplied hackathon data and API output must never reach this public repo
+data/
+*.csv
