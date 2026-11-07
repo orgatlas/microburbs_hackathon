@@ -1,0 +1,56 @@
+[
+  {
+    "kind": "rent",
+    "site": "domain",
+    "suburb": "Redfern",
+    "url": "https://www.domain.com.au/17-young-street-redfern-nsw-2016-17875055",
+    "wayback": "20251210010234",
+    "title_says": "For Rent",
+    "page_address": "17 Young Street, Redfern NSW 2016"
+  },
+  {
+    "kind": "rent",
+    "site": "realestate",
+    "suburb": "Ultimo",
+    "url": "https://www.realestate.com.au/property-apartment-nsw-ultimo-426000942",
+    "wayback": "20250501142733",
+    "title_says": "for Rent",
+    "page_address": "504/349-355 Bulwara Road, Ultimo, NSW 2007"
+  },
+  {
+    "kind": "rent",
+    "site": "domain",
+    "suburb": "Zetland",
+    "url": "https://www.domain.com.au/59-portman-street-zetland-nsw-2017-17904853",
+    "wayback": "20251219094851",
+    "title_says": "For Rent",
+    "page_address": "59 Portman Street, Zetland NSW 2017"
+  },
+  {
+    "kind": "sale",
+    "site": "realestate",
+    "suburb": "Surry Hills",
+    "url": "https://www.realestate.com.au/property-apartment-nsw-surry+hills-147399572",
+    "wayback": "20250506010259",
+    "title_says": "for Sale",
+    "page_address": "8/342 Bourke Street, Surry Hills, NSW 2010"
+  },
+  {
+    "kind": "sale",
+    "site": "realestate",
+    "suburb": "Pyrmont",
+    "url": "https://www.realestate.com.au/property-apartment-nsw-pyrmont-143367376",
+    "wayback": "20250428103616",
+    "title_says": "for Sale",
+    "page_address": "801/8 Darling Island Road, Pyrmont, NSW 2009"
+  },
+  {
+    "kind": "sale",
+    "site": "domain",
+    "suburb": "Glebe",
+    "url": "https://www.domain.com.au/110-11-wigram-lane-glebe-nsw-2037-2020659759",
+    "wayback": "20260316120623",
+    "title_says": "<address> | Domain (no For Rent, not Sold: Domain's for-sale title format)",
+    "page_address": "110/11 Wigram Lane, Glebe NSW 2037"
+  }
+]
