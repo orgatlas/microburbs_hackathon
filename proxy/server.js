@@ -98,6 +98,12 @@ export function createApp({
       return outside ? res.status(403).json(blank(asOf, true)) : res.json({ matched, facts, outsideCoverage: false });
     } catch (error) {
       const outside = error?.status === 403;
+      if (error?.status === 401) {
+        // A rejected key used to look exactly like "no match": say so instead.
+        console.error('Microburbs rejected the API key (HTTP 401). Check MICROBURBS_API_KEY in proxy/.env, then restart.');
+        return res.status(502).json({ ...blank(asOf), error: { code: 'upstream_auth',
+          message: 'Microburbs rejected the proxy API key (HTTP 401). Put the team key in proxy/.env and restart the proxy.' } });
+      }
       return res.status(outside ? 403 : 200).json(blank(asOf, outside));
     }
   });
@@ -114,6 +120,10 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
       process.exitCode = 1;
     } else {
       console.log(`Fit proxy listening at http://localhost:${port}`);
+      // One cheap call so a wrong key shows up at startup, not as empty lookups. The key is never logged.
+      createApiClient({ apiKey: env.MICROBURBS_API_KEY?.trim() }).get('/v1/me')
+        .then(() => console.log('Microburbs API key accepted.'))
+        .catch((e) => console.error(`Microburbs API key check failed (HTTP ${e?.status ?? 'network'}): ${e?.status === 401 ? 'key rejected, fix MICROBURBS_API_KEY in proxy/.env' : 'see above'}.`));
     }
   });
 }
