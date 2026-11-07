@@ -21,20 +21,16 @@ const SARAH = Object.freeze({
   weights: Object.freeze({ commute: 0.35, safety: 0.25, lifestyle: 0.15, price: 0.25 }),
 });
 
-const CACHE_MS = 10 * 60 * 1000; // same tab + same home + same profile within 10 min: no refetch
+// No result cache here on purpose: every check asks the live proxy (it has its own cache), so a
+// stopped proxy can never be masked by an old answer.
 const TIMEOUT_MS = 25000; // below the worker's 30 s idle window
 const SETTLE_MS = 700; // after a URL change, let the new listing render before asking for its address
 const STALE_GUARD_MS = 5000; // after an in-page navigation, the old address is distrusted this long
 const MAX_ADDRESS_CHARS = 200;
-const CACHEABLE = new Set(["matched", "ambiguous", "no_match", "out_of_area"]);
-const NETWORK_ERROR = Object.freeze({
-  status: "error",
-  code: "network",
-  message: "Could not reach MicroMatch. Is the proxy running on localhost:3000?",
-});
+// A network failure or timeout of GET /lookup: no numbers, the panel offers a retry.
+const OFFLINE = Object.freeze({ status: "error", code: "offline", message: "Backend offline" });
 
 const tabKey = (tabId) => `tab:${tabId}`; // what the panel renders
-const cacheKey = (tabId) => `cache:${tabId}`; // last good answer for the tab, survives URL changes
 const pickKey = (tabId) => `pick:${tabId}`; // the user's own correction ("Not this one?") for a page
 
 // Memory only: a worker restart also kills any in-flight fetch, so nothing stale can land.
@@ -150,7 +146,7 @@ async function computeFit(record, rawProfile) {
   const score = findFunction(scoreModule, ["scoreListing", "computeFit", "score", "computeScore", "fitScore", "scoreFit"]);
   if (!adapt || !score) return null;
   const profile = (normalize && (await normalize(rawProfile))) || rawProfile;
-  const adapted = await adapt(record, { query: record.query ?? null, fetchedAt: record.fetchedAt ?? null, mock: Boolean(record.mock) });
+  const adapted = await adapt(record);
   const fit = readFit(await score(adapted, profile));
   return Number.isFinite(fit) ? Math.max(0, Math.min(100, Math.round(fit))) : null;
 }
@@ -196,16 +192,8 @@ async function fetchMatch(body, profile, label) {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-  } catch (error) {
-    if (error?.name === "TimeoutError") {
-      return {
-        status: "error",
-        code: "timeout",
-        message: `MicroMatch took longer than ${TIMEOUT_MS / 1000} s to answer. Try again.`,
-        detail: String(error?.message || error),
-      };
-    }
-    return { ...NETWORK_ERROR, detail: String(error?.message || error) };
+  } catch {
+    return { ...OFFLINE }; // proxy down, unreachable or too slow (TimeoutError): never a stale or fake answer
   }
   let data;
   try {
@@ -227,7 +215,7 @@ async function fetchMatch(body, profile, label) {
       httpStatus: response.status,
     };
   }
-  // README Contract 2 has no status field: derive one for the badge, the cache and the panel.
+  // README Contract 2 has no status field: derive one for the badge and the panel.
   // The proxy answers 403 + outsideCoverage for addresses outside the City of Sydney.
   if (data.error && typeof data.error === "object") {
     return {
@@ -262,7 +250,7 @@ function clearTab(tabId) {
   return removal;
 }
 
-// options.force skips the cache and the duplicate check (retry); options.pageUrl is the listing page;
+// options.force skips the duplicate check (retry); options.pageUrl is the listing page;
 // options.label names a picked candidate (its address) for the panel, since only its gnaf_id is sent.
 async function requestMatch(tabId, rawBody, options = {}) {
   const body = cleanBody(rawBody);
@@ -280,17 +268,6 @@ async function requestMatch(tabId, rawBody, options = {}) {
   const label = cleanLabel(options.label);
   const query = body.address || label || body.gnaf_id;
 
-  if (!options.force) {
-    const [shown, cached] = await Promise.all([readSession(tabKey(tabId)), readSession(cacheKey(tabId))]);
-    if (!isCurrent()) return;
-    if (cached?.key === key && Date.now() - cached.at < CACHE_MS && cached.record) {
-      inflight.delete(tabId);
-      if (shown?.cacheKey === key && shown.status === cached.record.status) return; // already on screen
-      await writeRecord(tabId, { ...cached.record, pageUrl: pageUrl ?? cached.record.pageUrl ?? null }, profile);
-      return;
-    }
-  }
-
   await writeRecord(tabId, { status: "loading", query, request: body, label, pageUrl, startedAt: new Date().toISOString() }, profile);
   const payload = await fetchMatch(body, profile, label);
   if (!isCurrent()) return; // superseded by a newer request or a URL change: drop it
@@ -303,13 +280,8 @@ async function requestMatch(tabId, rawBody, options = {}) {
     request: body,
     label,
     pageUrl,
-    cacheKey: key,
   };
-  const writes = [writeRecord(tabId, record, profile)];
-  if (CACHEABLE.has(record.status)) {
-    writes.push(quiet(chrome.storage.session.set({ [cacheKey(tabId)]: { key, at: Date.now(), record } })));
-  }
-  await Promise.all(writes);
+  await writeRecord(tabId, record, profile);
 }
 
 // ---------- navigation ----------
@@ -371,7 +343,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   for (const map of [inflight, epochs, lastUrls, lastAddresses, staleGuards]) map.delete(tabId);
   clearTimeout(settleTimers.get(tabId));
   settleTimers.delete(tabId);
-  quiet(chrome.storage.session.remove([tabKey(tabId), cacheKey(tabId), pickKey(tabId)]));
+  quiet(chrome.storage.session.remove([tabKey(tabId), pickKey(tabId)]));
 });
 
 // A new quiz result changes every score: re-run each tab that has a home on screen.
