@@ -39,5 +39,5 @@ Sign out. Second persona: Alex, a buyer with different priorities, takes the qui
 Same home, different person: Alex's saved profile gives a different needle. The facts didn't change; the priorities did.
 
 11
-00:02:33,944 --> 00:02:42,896
+00:02:33,944 --> 00:02:50,400
 For Sarah, rent is 267% of her weekly income ($1,600 ÷ $600). Same home: Sarah 42 · Alex 65. MicroMatch by team Microscope.
