@@ -1,18 +1,26 @@
 {
   "manifest_version": 3,
-  "name": "Listing Check",
-  "version": "0.1.0",
-  "description": "Checks a listing's address against Microburbs data: estimate, basics, nearby sales, rent and DAs. City of Sydney only.",
-  "action": {
-    "default_title": "Listing Check"
-  },
+  "name": "MicroMatch",
+  "version": "0.2.0",
+  "description": "See how well a City of Sydney listing fits your commute, safety, lifestyle and budget. Reads only the address.",
+  "permissions": [
+    "storage",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*"
+  ],
   "background": {
-    "service_worker": "background.js",
+    "service_worker": "src/background.js",
     "type": "module"
   },
-  "permissions": [
-    "storage"
-  ],
+  "action": {
+    "default_title": "Open MicroMatch"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/index.html"
+  },
   "content_scripts": [
     {
       "matches": [
@@ -21,19 +29,9 @@
       ],
       "js": [
         "src/extract.js",
-        "panel/score.js",
-        "panel/meter.js",
-        "panel/halos.js",
-        "panel/profile.js",
-        "src/panel.js",
         "src/content.js"
       ],
       "run_at": "document_idle"
     }
-  ],
-  "host_permissions": [
-    "http://localhost:8787/*",
-    "http://127.0.0.1:8787/*",
-    "https://*.vercel.app/*"
   ]
 }
