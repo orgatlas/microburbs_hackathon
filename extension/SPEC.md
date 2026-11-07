@@ -6,7 +6,7 @@ The extension reads the address from a listing, asks the backend for a match, an
 
 | File | Purpose |
 | --- | --- |
-| [`src/address.js`](src/address.js) | Finds the address. Selectors **haven't been tested on live sites** |
+| [`src/extract.js`](src/extract.js) | Finds the address: JSON-LD, then the h1, otherwise the user types it. Tested by `address.test.js` |
 | [`src/content.js`](src/content.js) | Watches for listing changes and sends the address |
 | [`src/background.js`](src/background.js) | Calls the API, stores each tab's result, sets the badge |
 | [`sidepanel/`](sidepanel/) | Bare panel with all states and a typed address box |
