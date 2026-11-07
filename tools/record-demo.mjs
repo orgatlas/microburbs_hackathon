@@ -1,7 +1,8 @@
 // Records the 3-minute demo (docs/PITCH.md storyboard) in headed Chromium with the unpacked
-// extension: left = listing/website (1560x1080), right = side panel (360x1080). Captions are drawn
-// into the page so they are burned into the frames; beat times are written for demo.srt.
-// Needs run.sh (proxy :3000, Django :8001, website :3001). Output: tools/shots/demo-*.webm + beats.json
+// extension on ONE home, 59 Portman Street, Zetland: the content script reads the address from the
+// page itself (no typing). Left = listing/website (1560x1080), right = side panel (360x1080).
+// Captions are drawn into the page (burned into the frames) and use the numbers the panel shows.
+// Needs run.sh (proxy :3000, Django :8001, website :3001). Output: tools/shots/demo-raw/*.webm + beats.json
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import os from "node:os";
@@ -14,7 +15,6 @@ const OUT = path.join(ROOT, "tools", "shots", "demo-raw");
 const { chromium } = createRequire(path.join(ROOT, "tools", "package.json"))("playwright");
 const SITE = "http://localhost:3001";
 const HOST = "https://www.domain.com.au/59-portman-street-zetland-nsw-2017-17904853";
-const ADDRESS = "401/2 Victoria Park Parade, Zetland";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const stamp = Date.now();
 const PASSWORD = "microscope-demo-2026";
@@ -24,7 +24,6 @@ const html = fs.readFileSync(path.join(dir, fs.readdirSync(dir).find((f) => f.in
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
-const t0 = Date.now();
 const ctx = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), "mm-demo-")), {
   headless: false,
   viewport: { width: 1560, height: 1080 },
@@ -96,10 +95,29 @@ async function signUp(name, email) {
   await left.getByRole("button", { name: "Create my account" }).click();
   await left.waitForURL(/\/dashboard/, { timeout: 30000 });
 }
-const fit = () => panel.evaluate(() => document.querySelector("[data-fit]")?.dataset.fit ?? null).catch(() => null);
-async function waitFit() { for (let i = 0; i < 80; i++) { const f = await fit(); if (f && f !== "null") return f; await sleep(250); } return null; }
+const panelText = () => panel.evaluate(() => (document.querySelector("#view")?.innerText || "").replace(/\s+/g, " ")).catch(() => "");
+// The needle is read only once the panel says "Scored for <name>" and the fit has held for 2 s,
+// so the end card always matches what is on screen.
+async function stableFitFor(name) {
+  let last = null, same = 0;
+  for (let i = 0; i < 160; i++) {
+    const [f, text] = await Promise.all([
+      panel.evaluate(() => document.querySelector("[data-fit]")?.dataset.fit ?? null).catch(() => null),
+      panelText(),
+    ]);
+    const ok = f && f !== "null" && text.includes(`Scored for ${name}`);
+    if (ok && f === last) { same += 1; if (same >= 8) return f; } else { same = 0; }
+    last = ok ? f : null;
+    await sleep(250);
+  }
+  return last;
+}
+async function factLine(re) {
+  const lines = await panel.evaluate(() => [...document.querySelectorAll(".mbx-fit__fact-main")].map((e) => e.textContent.replace(/\s+/g, " ").trim())).catch(() => []);
+  return lines.find((l) => re.test(l)) || null;
+}
 
-// ---------------- the storyboard ----------------
+// ---------------- the storyboard (same beats as docs/PITCH.md) ----------------
 beat("Sarah · 19 · casual retail · about $600 a week. Fresh install: MicroMatch reads only the listing's address.");
 await left.goto(HOST, { waitUntil: "domcontentloaded", timeout: 60000 });
 let tabId = null;
@@ -112,12 +130,11 @@ for (let i = 0; i < 80 && !tabId; i++) {
   if (!tabId) await sleep(200);
 }
 await panel.goto(`chrome-extension://${extId}/sidepanel/index.html?tabId=${tabId}`);
-await until(6);
-await panel.fill("#mm-typeit-input", "");
-await typeSlow(panel, "#mm-typeit-input", ADDRESS);
-await panel.press("#mm-typeit-input", "Enter");
+await panel.waitForFunction(() => document.querySelector("#view")?.dataset.state === "matched", null, { timeout: 30000 }).catch(() => {});
+const matchedName = await panel.evaluate(() => document.querySelector('[data-bind="address"]')?.textContent?.trim() || "").catch(() => "");
+const exact = /exact match/i.test(await panelText());
 await until(12);
-beat("Matched home: Unit 401, 2 Victoria Park Parade, Zetland (exact). No profile yet, so no score: take the quiz.");
+beat(`Read from the page: ${matchedName}${exact ? " (Exact match)" : ""}. No profile yet, so no score: take the quiz.`);
 await until(24);
 
 beat("Sarah signs up on our website. Her account saves her quiz answers so the extension can use her own priorities.");
@@ -134,12 +151,20 @@ await until(86);
 
 beat("Back on the listing. The panel loads Sarah's saved profile and the needle settles on her fit.");
 await left.goto(HOST, { waitUntil: "domcontentloaded", timeout: 60000 });
-const sarahFit = await waitFit();
+const sarahFit = await stableFitFor("Sarah");
+const rentLine = (await factLine(/^Rent · /)) || "";
+const rentMatch = /\$([\d,]+)\/wk · (\d+)% of income/.exec(rentLine);
+const rent = rentMatch ? rentMatch[1] : null;
+const pct = rentMatch ? rentMatch[2] : null;
+const destLine = (await factLine(/^Your destination/)) || "";
+const busLine = (await factLine(/^(Bus|Train|Light rail|Ferry) · /)) || "";
 await until(102);
-beat("Commute: 2.6 km to work, the bus 66 m away. Straight-line distances; minutes marked est. are estimates. Sources sit under each fact.");
+const destKm = (/· ([\d.]+ km) to/.exec(destLine) || [])[1];
+beat(`Commute: ${[destKm ? `${destKm} to work` : null, busLine ? busLine.replace(" · ", " ") : null].filter(Boolean).join(", ") || "distance to work and transport"}. Straight-line distances; minutes marked est. are estimates. Sources sit under each fact.`);
 await panel.evaluate(() => { const d = [...document.querySelectorAll("details")].find((x) => /commute/i.test(x.querySelector("summary")?.textContent || "")); if (d) { d.open = true; d.scrollIntoView({ block: "center", behavior: "smooth" }); } });
 await until(118);
-beat("Cons: $1,100 a week rent is 183% of Sarah's $600 income. A nearby bus doesn't erase that trade-off.");
+beat(rent && pct ? `Cons: $${rent} a week rent is ${pct}% of Sarah's $600 income. A nearby bus doesn't erase that trade-off.`
+  : "Cons: the rent line shows what share of Sarah's $600 income this home would take.");
 await panel.evaluate(() => { const c = [...document.querySelectorAll("*")].find((x) => x.children.length === 0 && /^Cons$/.test(x.textContent.trim())); (c || document.body).scrollIntoView({ block: "start", behavior: "smooth" }); });
 await until(136);
 
@@ -156,15 +181,16 @@ await quiz({
 beat("Same home, different person: Alex's saved profile gives a different needle. The facts didn't change; the priorities did.");
 await left.goto(HOST, { waitUntil: "domcontentloaded", timeout: 60000 });
 await panel.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, behavior: "smooth" }));
-const alexFit = await waitFit();
+const alexFit = await stableFitFor("Alex");
+await sleep(5000);
+beat(`${rent && pct ? `For Sarah, rent is ${pct}% of her weekly income ($${rent} ÷ $600). ` : ""}Same home: Sarah ${sarahFit} · Alex ${alexFit}. MicroMatch by team Microscope.`);
 await sleep(9000);
-beat(`For Sarah, rent is 183% of her weekly income ($1,100 ÷ $600). Sarah ${sarahFit} · Alex ${alexFit}. MicroMatch by team Microscope.`);
-await sleep(8000);
 
 clearInterval(painter);
 const end = (Date.now() - leftStart) / 1000;
 await ctx.close();
 const leftVideo = await left.video().path();
 const panelVideo = await panel.video().path();
-fs.writeFileSync(path.join(OUT, "beats.json"), JSON.stringify({ beats, end, leftVideo, panelVideo, panelOffset: (panelStart - leftStart) / 1000, sarahFit, alexFit, launch: (leftStart - t0) / 1000 }, null, 1));
-console.log(JSON.stringify({ end, sarahFit, alexFit, leftVideo, panelVideo, panelOffset: (panelStart - leftStart) / 1000 }));
+const summary = { end, matchedName, exact, sarahFit, alexFit, rent, pct, destLine, busLine, leftVideo, panelVideo, panelOffset: (panelStart - leftStart) / 1000 };
+fs.writeFileSync(path.join(OUT, "beats.json"), JSON.stringify({ ...summary, beats }, null, 1));
+console.log(JSON.stringify(summary));
