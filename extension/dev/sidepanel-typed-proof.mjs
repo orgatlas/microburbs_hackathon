@@ -55,7 +55,7 @@ for (let i = 0; i < 80 && !tabId; i++) {
   if (!tabId) await sleep(250);
 }
 // --profile <file.json>: store a quiz persona exactly where site-bridge.js puts the website's saved
-// profile (chrome.storage.local.profile). Without it the panel falls back to Sarah.
+// profile (chrome.storage.local.profile). Without it the panel shows "Take the quiz to see your fit" (no score).
 const profileArg = process.argv.indexOf("--profile");
 const persona = profileArg > 0 ? JSON.parse(fs.readFileSync(process.argv[profileArg + 1], "utf8")) : null;
 if (persona) await sw.evaluate((p) => chrome.storage.local.set({ profile: p }), persona);
