@@ -1,17 +1,21 @@
 // Address extraction for realestate.com.au and domain.com.au listing pages.
 //
-// PRIVACY: this file reads ONLY the listing's address. It looks at three
-// places, in order: JSON-LD PostalAddress fields, the address h1, and the
-// page title. Every other JSON-LD field is discarded as soon as it is parsed.
-// Nothing is stored (no localStorage, no chrome.storage) and nothing is sent
-// from here; content.js hands the address string to the service worker.
+// PRIVACY (README hard rule 1): this file reads ONLY the listing's address,
+// from two places, in order: JSON-LD address fields (PostalAddress parts or a
+// plain "address" string), then the address h1. If neither yields an address,
+// extractAddress resolves null and the panel asks the user to type it. It
+// never reads the page title, body text, prices, photos or agent details, and
+// every non-address JSON-LD field is discarded as soon as it is parsed. The
+// tab's URL path is used only to rank candidates already found, never as an
+// address source. Nothing is stored (no localStorage, no chrome.storage) and
+// nothing is sent from here; content.js hands the address string to the
+// service worker.
 globalThis.MBX = globalThis.MBX || {};
 
 (function (MBX) {
   'use strict';
 
   const POLL_MS = 300;
-  const TITLE_GRACE_MS = 1200; // give JSON-LD and the h1 a head start over the title
 
   // ---------------------------------------------------------------- pages
 
@@ -165,7 +169,7 @@ globalThis.MBX = globalThis.MBX || {};
     return out;
   }
 
-  // ------------------------------------------------------------ h1 / title
+  // -------------------------------------------------------------------- h1
 
   // Site-specific address headings first, then the first h1 on the page.
   const H1_SELECTORS = [
@@ -194,13 +198,6 @@ globalThis.MBX = globalThis.MBX || {};
     const first = document.querySelector('h1');
     if (first) out.push(clean(first.textContent));
     return out;
-  }
-
-  function fromTitle() {
-    const t = clean(document.title);
-    if (!t) return [];
-    const head = t.split(/\s+[-–|]\s+/)[0];
-    return [head];
   }
 
   // Prefer the candidate that shares the most words with the URL slug
@@ -236,13 +233,15 @@ globalThis.MBX = globalThis.MBX || {};
     return best;
   }
 
-  function tryOnce(allowTitle) {
-    const sources = [
-      ['json-ld', fromJsonLd],
-      ['h1', fromH1],
-    ];
-    if (allowTitle) sources.push(['title', fromTitle]);
-    for (const [source, read] of sources) {
+  // JSON-LD first, then the h1. There is deliberately no third page source:
+  // when both miss, the user types the address (content.js: need_address).
+  const SOURCES = [
+    ['json-ld', fromJsonLd],
+    ['h1', fromH1],
+  ];
+
+  function tryOnce() {
+    for (const [source, read] of SOURCES) {
       let address = null;
       try {
         address = pick(read());
@@ -259,9 +258,8 @@ globalThis.MBX = globalThis.MBX || {};
     const started = Date.now();
     return new Promise((resolve) => {
       const tick = () => {
-        const elapsed = Date.now() - started;
-        const last = elapsed + POLL_MS > timeoutMs;
-        const hit = tryOnce(last || elapsed >= Math.min(TITLE_GRACE_MS, timeoutMs / 2));
+        const last = Date.now() - started + POLL_MS > timeoutMs;
+        const hit = tryOnce();
         if (hit) return resolve(hit);
         if (last) return resolve(null);
         setTimeout(tick, POLL_MS);
