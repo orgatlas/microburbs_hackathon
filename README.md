@@ -1,139 +1,132 @@
-# Fit — does this home fit *you*?
+# MicroMatch
 
-**Microburbs Hackathon · Task 3 (Chrome extension) · Saturday 7 November 2026 · City of Sydney**
+**Team Microscope · Microburbs Hackathon, Task 3 (Chrome extension) · Saturday 7 November 2026 · City of Sydney**
 
-A Chrome side panel that sits beside any realestate.com.au or domain.com.au listing and answers one question at a glance: **how well does this home fit me?** A speedo gives a 0–100 fit score. Under it, the halos and failos — the three facts pulling the needle up and the three pulling it down, each with its number and where it came from. Under that, four sliders: **Commute, Safety, Lifestyle, Price.**
+## What we built
 
-Everyone gets a different needle for the same listing because the weights are theirs. A six-question onboarding quiz turns answers into weights: a workaholic's needle swings on the walk to the station, a partier's on bars within ten minutes, a 19-year-old on a casual wage sees affordability first. Same Microburbs facts, personalised. That's the clever step.
+MicroMatch is a Chrome side panel that sits beside a realestate.com.au or domain.com.au listing and answers one question: how well does this home fit you?
 
-**Who it's for:** anyone browsing inner-Sydney listings who isn't the median buyer the portals assume. Our persona is **Sarah** — 19, casual retail at ~$600/week, parents moving her out, looking for somewhere she can actually afford that gets her to work.
+1. **It reads only the address.** The content script takes the listing's address from the page (JSON-LD first, then the `h1`). It reads no other listing text, no photos and no asking price. If it can't find an address, you can type one into the panel.
+2. **It matches the address to one home.** Our proxy sends the text to Microburbs `geocode/address`, keeps only candidates in the City of Sydney's 29 suburbs, and returns the G-NAF home with a confidence of `exact`, `building` or `guess`. The panel shows the matched address at the top, with a "Not this one?" picker and a box to type the address, so you can check it is the right home.
+3. **It pulls live Microburbs facts through our proxy.** The proxy holds the API key and fans out to the Microburbs endpoints for commute, safety, lifestyle and price.
+4. **It scores the home against your own quiz weights.** You sign up on our website and take a short quiz, and your answers become your weights. The panel shows:
+   - a speedo with a 0–100 fit score
+   - up to three pros and three cons, each with its number, its source endpoint and an as-of date
+   - four sliders (Commute, Safety, Lifestyle, Price), each with that dimension's 0–100 score
 
----
+Two people looking at the same listing get different scores because the weights are theirs. There is no default persona. Until you take the quiz, the panel shows the matched address and asks you to take it, with a button that opens http://localhost:3001. It shows no speedo and no numbers.
 
-## For any AI agent building this: read everything below before writing code
+Every figure is a Microburbs automated estimate. It is indicative only and is not a valuation or financial advice. The panel says so.
 
-### Hard rules (breaking one loses points or gets us excluded)
-1. **Read ONLY the listing's address from the page.** JSON-LD, then `h1`, then the user types it. No screenshots, no transcription, no listing text, no photos, no asking price. Nothing else leaves the page.
-2. **The API key never reaches the browser.** It lives in `proxy/.env` (gitignored). The extension talks only to the local proxy.
-3. **Nothing supplied goes in the repo.** No `.env`, no `data/*.csv`, no raw API output, no hidden judging data. `.gitignore` already covers these; check `git status` before every commit.
-4. **Coverage is the City of Sydney's 29 suburbs.** Anything else returns `403` → show a calm "outside the City of Sydney trial area" state.
-5. **No data is still HTTP 200** with `{"data": null, "available": false, ...}`. Treat as "no figure", never as zero. A score is built from the signals that *are* available.
-6. **Estimates, not advice.** Footer on the panel: "Microburbs estimates, indicative only — not a valuation or financial advice", with an as-of date.
-7. **Every number on screen shows its source.** Judges check facts against the correct home. The speedo is a summary; the halos/failos are the evidence.
+## How to run
 
-### API
-- Base `https://api-ht.microburbs.com.au`, header `Authorization: Bearer $MICROBURBS_API_KEY`
-- OpenAPI spec and try-it: https://api-ht.microburbs.com.au/docs — **use any endpoint in the spec that serves a signal.** The endpoints named below are starting points, not a limit.
-- ~10 req/s per key. Back off on `429`. Cache by `gnaf_id` and by suburb in the proxy.
-- `GET /v1/geocode/address` returns up to 10 candidates nationwide → keep only the 29 suburbs before trusting the top hit.
-- Demo code (MIT): https://github.com/David-Mib/microburbs-hackathon-demos
+You need Node.js, Python 3 and Chrome (or Chromium).
 
-### Architecture
+1. **Add the key.** Copy `proxy/.env.example` to `proxy/.env` and set `MICROBURBS_API_KEY` to the team key. `proxy/.env` is gitignored, so never commit it. The key stays in the proxy and never reaches the browser.
+2. **Start everything** from the repo root:
+   ```bash
+   ./run.sh
+   ```
+   This starts the proxy on http://localhost:3000, Django (accounts and saved quiz results) on http://localhost:8001 and the website on http://localhost:3001. On the first run it creates the Django virtualenv, runs migrations and installs the npm packages. If one of the ports is already in use, it skips that server. Press Ctrl+C to stop them all.
+3. **Load the extension.** In Chrome, open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and choose the `./extension` folder.
+4. **Sign up and take the quiz** at http://localhost:3001. The dashboard passes your saved profile to the extension (`extension/src/site-bridge.js` saves it to `chrome.storage.local.profile`).
+5. **Open a City of Sydney listing** on realestate.com.au or domain.com.au and click the MicroMatch toolbar icon to open the side panel. You can also type an address into the panel.
+
+If the proxy is down, the panel says "Backend offline — retry" and shows no numbers.
+
+## Who it helps
+
+It helps people browsing inner-Sydney listings whose priorities differ from the typical buyer the portals have in mind. One example is a 19-year-old on a casual wage, for whom rent against income matters most. Another is a commuter who cares mostly about the walk to the station, or someone who wants bars within ten minutes' walk. The portals show everyone the same facts. MicroMatch weights those facts by what this person told us matters to them.
+
+## The data
+
+All facts come live from the Microburbs API (`https://api-ht.microburbs.com.au`) through our proxy. Property endpoints sit under `/v1/properties/{gnaf_id}` and suburb endpoints under `/v1/suburbs/{suburb_name}`.
+
+| Dimension | Endpoints |
+|---|---|
+| Matching | `/v1/geocode/address`, `/v1/suburbs/list` (filter to the 29 suburbs), plus the supplied City of Sydney address list as a matching table when the file is present locally |
+| Commute | `transport/nearby`, `basics/parking-count`, `shapes/busy-roads`, property coordinates (distance to Town Hall and to your work address) |
+| Safety | `crime/by-mesh-block`, `crime/summary`, `lifestyle/livability`, `risks/all`, plus the supplied estimated public-housing flags when the file is present locally |
+| Lifestyle | `amenities/nearby`, `lifestyle/pois` |
+| Price | `rent-history-latest`, `market/rent-map`, `market/median-rent`, `valuation/avm`, `comparables/recent-sales-nearby`, `comparables/cma-comp-set`, `market/strata-levies`, `development/council-rates`, `development/construction-activity`, `market/vacancy-map`, `market/days-on-market` |
+
+- **Rent** comes from the home's latest rent advert where there is one. Otherwise it comes from the mesh-block or suburb rent estimate. The panel names the source it used.
+- **No data is still a 200.** If a response has `data: null`, that signal counts as "no figure" and is left out of the score. It is never scored as zero.
+- **The supplied hackathon files** (the address list and the estimated public-housing flags) are read by the proxy from `data/` only if they are present on the machine. We used them only on the day, and they are not in this repo (`data/` is gitignored).
+
+## The clever step
+
+There are two parts.
+
+1. **Address matching you can check.** Portals write addresses many ways ("105/8 Sam Sing St", "Unit 105, 8 Sam Sing Street", "Level 3", "8–10 …"). Geocode candidates come from the whole country. The proxy normalises the text, drops candidates outside the 29 suburbs and labels the match:
+   - `exact`: this unit
+   - `building`: right building, unit not confirmed
+   - `guess`: best remaining candidate
+
+   The panel always shows the matched address and lets you pick another candidate or type the address, so it never presents a guess as certain.
+2. **Per-user weights from the quiz, with no default persona.** The quiz saves weights for safety, lifestyle and price (0–100). The panel keeps commute at 0.25 and splits the remaining 0.75 between the other three in proportion to those weights. The same Microburbs facts produce a different score for each account, and no score appears until you have taken the quiz.
+
+## Scoring model
+
+This is the model in `extension/sidepanel/score.js`, described in words in `docs/SCORING.md`.
+
+- Each **signal** maps to 0–100 using the thresholds below.
+- A missing signal is skipped, never scored 0.
+- Each **dimension** is the weighted mean of its scored signals.
+- **Fit = Σ weight × dimension**, rounded.
+- **Pros** are up to three signals scoring ≥ 70 with the largest weighted contribution. **Cons** are up to three scoring ≤ 30.
+- Signals gated on a quiz flag (`hasCar`, `nightlife`) count fully when the flag is true, at half weight when it is absent, and not at all when it is false.
+
+| Dimension | Signal | 100 | 50 | 0 |
+|---|---|---|---|---|
+| Commute | Walk to nearest train / light rail / bus | < 400 m | 400–900 m | > 1.2 km |
+| Commute | Distance to work address (haversine) | < 2 km | 2–6 km | > 10 km |
+| Commute | Distance to CBD (Town Hall −33.8731, 151.2069) | < 2 km | 2–5 km | > 8 km |
+| Commute | Parking on title (if you have a car) | ≥ 1 space | — | 0 |
+| Commute | Busy-road frontage | none | nearby | fronting |
+| Safety | Mesh-block crime vs suburb benchmark | ≥ 20 % below | within ±20 % | ≥ 20 % above |
+| Safety | Suburb livability vs regional benchmark | above | at | below |
+| Safety | Hazards on this property (flood, landslide, HV line, contamination) | none | nearby only | on property |
+| Safety | Estimated social-housing share in the building (an estimate, only when the supplied flags file is present locally) | low | mid | high |
+| Lifestyle | Supermarket, gym and café within 10 min walk | all three | two | one or none |
+| Lifestyle | Nightlife within 10 min | ≥ 3 venues | 1–2 | 0 |
+| Lifestyle | Nearest park, beach or green space (straight line) | < 500 m | 500 m – 1 km | > 1 km |
+| Price | Rent affordability (rent ÷ weekly income) | ≤ 30 % | 30–40 % | > 40 % |
+| Price | Buy affordability (AVM vs budget) | ≤ budget | within +10 % | > +10 % |
+| Price | Value: AVM vs closest comparable sales | at or below | within +5 % | > +5 % |
+| Price | Running costs: council rates, strata levies | below suburb average | at | above |
+| Price | Development pressure: construction on the block | low | some | heavy |
+| Price | Negotiating room: rental vacancy, days on market | high | mid | tight |
+
+Between the 50 and 0 thresholds, distance and ratio signals fall linearly from 50 to 0.
+
+## Layout
+
 ```
-extension/                 Manifest V3. Fixed 360px right column injected on listing pages (or Side Panel API if already built that way — don't rebuild).
-  content.js               hostname dispatch → extract/*.js → address → background → proxy → panel
-  extract/domain.js        domain.com.au address only
-  extract/realestate.js    realestate.com.au address only
-  background.js            messaging, calls proxy, caches per tab
-  panel/                   speedo, halos/failos, four sliders, matched-address header, profile reader
-  onboarding/              six-question quiz → writes profile to chrome.storage.local (owned by the questionnaire builder)
-proxy/                     Node + Express on localhost:3000, holds the key, matcher, facts fan-out, cache
-tests/                     unit tests for scoring, e2e on real listings, findings.md
-docs/SCORING.md            the scoring model in words — becomes a section of report.html
-```
-
-### Contract 1 — the profile (written by onboarding, read by the panel)
-`chrome.storage.local` key `profile`. If missing, the panel uses this exact default (Sarah):
-```json
-{
-  "name": "Sarah",
-  "mode": "rent",
-  "budgetWeekly": 250,
-  "incomeWeekly": 600,
-  "workAddress": "Broadway, Ultimo NSW",
-  "weights": { "commute": 0.35, "safety": 0.25, "lifestyle": 0.15, "price": 0.25 }
-}
-```
-`mode` is `"rent"` or `"buy"`. For `buy`, `budgetWeekly` is replaced by `budgetPrice`. Weights sum to 1.
-
-### Contract 2 — the proxy response (written by the proxy, read by the panel)
-`GET http://localhost:3000/lookup?address=<text>&work=<text>` returns:
-```json
-{
-  "matched": {
-    "gnaf_id": "GANSW710352293",
-    "display_name": "Unit 105, 8 Sam Sing Street, Waterloo (NSW)",
-    "suburb": "Waterloo (NSW)",
-    "confidence": "exact | building | guess",
-    "candidates": [{ "gnaf_id": "...", "display_name": "..." }]
-  },
-  "facts": {
-    "commute":   { "<signal>": { "value": 0.4, "unit": "km", "label": "Nearest light rail", "source": "/v1/properties/{id}/amenities/nearest-transport", "asOf": "2026-11-07", "available": true } },
-    "safety":    { },
-    "lifestyle": { },
-    "price":     { }
-  },
-  "outsideCoverage": false
-}
-```
-Every signal has the same shape. Unavailable signals are present with `available: false` and no `value`. The panel must render correctly with any subset missing.
-
-### Scoring model (the panel's `score.js`; documented in `docs/SCORING.md`)
-Each **signal** maps to 0–100 by thresholds. Each **dimension** is the mean of its available signals. **Fit = Σ weight × dimension**, rounded. Halos = the three available signals scoring ≥ 70 with the highest weighted contribution; failos = the three scoring ≤ 30. Sliders show each dimension's 0–100.
-
-| Dimension | Signal | 100 | 50 | 0 | Starting-point endpoints (use anything better in the spec) |
-|---|---|---|---|---|---|
-| Commute | Walk to nearest train / light rail / bus | < 400 m | 400–900 m | > 1.2 km | nearest transport by mode |
-| Commute | Distance to work address (haversine, geocode the work address) | < 2 km | 2–6 km | > 10 km | geocode + coordinates |
-| Commute | Distance to CBD (Town Hall −33.8731, 151.2069) | < 2 km | 2–5 km | > 8 km | coordinates |
-| Commute | Parking on title | ≥ 1 space (if profile wants a car) | — | 0 | basics/all `parking_count` |
-| Commute | Peak-hour road noise / busy road frontage | none | nearby | fronting | busy-road segments, noise-map regions |
-| Safety | Block crime vs suburb benchmark | ≥ 20 % below | within ±20 % | ≥ 20 % above | crime rate per census block, suburb vs benchmark |
-| Safety | Livability score vs regional benchmark | above | at | below | livability scores + benchmark |
-| Safety | Hazards **on this property** (flood, landslide, HV line, contamination) | none | nearby only | on property | property risk overlays (`on_property` true only) |
-| Safety | Estimated social-housing share, building level, neutral wording, labelled an estimate | low | mid | high | supplied flags file joined on address id |
-| Lifestyle | Supermarket + gym + café within 10 min walk | all three | two | ≤ one | nearby amenities, places in the suburb |
-| Lifestyle | Nightlife within 10 min (weighted up only if the quiz says so) | ≥ 3 venues | 1–2 | 0 | places (pubs, bars) |
-| Lifestyle | Park / beach / tree cover | park < 500 m | < 1 km | none | nearest beach, tree canopy, lifestyle summary |
-| Price | Affordability — rent (`mode: rent`): latest rent advert or rent estimate ÷ `incomeWeekly` | ≤ 30 % | 30–40 % | > 40 % | rent-history-latest, rental valuation, median weekly rent by bedrooms |
-| Price | Affordability — buy (`mode: buy`): AVM vs `budgetPrice` | ≤ budget | within +10 % | > +10 % | valuation/avm |
-| Price | Value: AVM vs 3 closest comparable sales | at or below comps | within +5 % | > +5 % above | valuation/avm, comparables |
-| Price | Running costs: council rates, strata levies | below suburb avg | at | above | average council rates, strata levies |
-| Price | Development pressure: recent DAs / construction on the block | low (quiet, stable) | some | heavy (noise now, supply later) | construction activity per block, DA count/list |
-| Price | Negotiating room: rental vacancy per block / days on market | high | mid | tight | rental vacancy per census block, median days on market |
-
-The quiz sets `weights`; it may also set flags like `hasCar` and `nightlife` that switch signals on. If a flag is absent, parking and nightlife are weighted at half.
-
-### Ownership — nobody edits another owner's directory
-| Owner | Directory | Deliverable by 13:45 |
-|---|---|---|
-| Carl | `extension/` (except `onboarding/`) | Panel renders on a real listing from the proxy contract: speedo, halos/failos with sources, four sliders, matched-address header with "Not this one?" picker and type-it box, reads profile with Sarah default |
-| Teammate 2 | `proxy/`, `tests/` | `/lookup` returns Contract 2 with as many signals as the spec supports, matcher handles "105/8", "Unit 105, 8", "Level 3", "8–10"; e2e on 3 rental + 3 sale listings; `tests/findings.md` |
-| Teammate 3 | `extension/onboarding/`, `docs/SCORING.md` quiz section | Six MCQs → profile JSON (Contract 1); "I'm Sarah" one-tap preset |
-
-The panel reads only the live proxy (`GET http://localhost:3000/lookup`, which calls api-ht.microburbs.com.au with the key). There is no mock mode and no fixture at runtime; if the proxy is down the panel says "Backend offline — retry".
-
-### Git protocol
-- `git pull --rebase` then `git push` **every 20 minutes**, on the hour, :20 and :40. The repo is the submission; a laptop dying at 14:50 must not cost the entry.
-- One commit per working piece, message `<dir>: what it does`. No "wip".
-- `git status` before every commit: no `.env`, no `data/`, no API output.
-- Conflicts can only happen in shared files — there are none. If one appears, the owner of the directory wins.
-
-### Timeboxes
-- **13:00** handshake: quiz writes profile → panel reads it → needle moves. Proxy returns a real listing's facts.
-- **13:45** feature freeze. Only fixes after this.
-- **13:45–14:15** videos: `pitch.mp4` ≤ 45 s opening on Sarah, `demo.mp4` ≤ 3 min on real listings, both < 95 MB.
-- **14:15–14:45** `report.html` (model from `docs/SCORING.md`, what worked, what didn't, held-out address-match rate on listings we didn't tune on), README "what we built" rewritten from this file.
-- **14:45** final push. **15:00** close.
-
-### How to run
-Start the proxy, Django and the website together with `./run.sh`, and stop them with Ctrl+C. The steps below start the proxy alone.
-```bash
-cd proxy && cp .env.example .env   # paste the team key
-npm install && npm start           # http://localhost:3000
-# Chrome → chrome://extensions → Developer mode → Load unpacked → ./extension
-# Open any City of Sydney listing on domain.com.au or realestate.com.au
+extension/   Manifest V3 side panel ("MicroMatch")
+  src/         content.js + extract.js (address only), background.js (calls the proxy), site-bridge.js (website → chrome.storage.local.profile)
+  sidepanel/   speedo, pros/cons, sliders, matched-address header, score.js (scoring model)
+proxy/       Node + Express on :3000. Holds the key, matches the address, fetches the facts, caches by gnaf_id and suburb
+backend/     Django on :8001. Accounts and saved quiz results
+frontend/    Next.js on :3001. Sign-up / log-in, quiz, dashboard
+docs/        SCORING.md, API_CONTRACT.md
+tests/       proxy tests, e2e checks on real listings, findings.md
+run.sh       starts the proxy, Django and the website together
 ```
 
-### Data credits
-Microburbs API (© Microburbs, estimates indicative only) · Open G-NAF © Geoscape Australia, licensed by the Commonwealth · ABS Census © Commonwealth of Australia, CC BY 4.0 · City of Sydney open data where used.
+## Honest limits
+
+- **Coverage:** the City of Sydney's 29 suburbs only. Any other address gets a 403 from the API, and the panel says the home is outside the trial area.
+- **Estimates:** every value, rent and score is an automated estimate, indicative only.
+- **Transport:** some transport results come back without stop names, so the panel can show the mode and distance but not always which stop it is.
+- **Rent by bedrooms:** the rent estimates do not always split by bedroom count. Where a figure is not for this home's bedroom count, it is an approximation.
+- **Address misses:** some listing addresses do not geocode to the right home. The confidence label, the candidate picker and the type-it box are there for those cases.
+- **Local only:** the stack runs on localhost. The extension calls `localhost:3000` and `localhost:8001`.
+
+## Data credits
+
+- **Microburbs API**: property, suburb, market, crime, transport, amenity and development data. © Microburbs. Automated estimates, indicative only.
+- **Open G-NAF**: address identifiers (`gnaf_id`). © Geoscape Australia, licensed by the Commonwealth of Australia under the Open G-NAF End User Licence Agreement.
+- **Australian Bureau of Statistics**: Census and mesh-block geography behind block-level figures. © Commonwealth of Australia, CC BY 4.0.
+- **City of Sydney**: the 29-suburb coverage area, and City of Sydney open data where used.
+- **Microburbs hackathon demo apps** (MIT): https://github.com/David-Mib/microburbs-hackathon-demos
