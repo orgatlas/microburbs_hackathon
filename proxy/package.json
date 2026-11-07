@@ -8,9 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "mock": "MOCK=1 node src/server.js",
-    "test": "node --test && node --test ../tests/proxy.test.js",
-    "fixture": "node fixtures/generate.js"
+    "test": "node --test && node --test ../tests/proxy.test.js"
   },
   "engines": {
     "node": ">=20.12"
