@@ -3,7 +3,7 @@
  * Adopted as a constructable stylesheet inside the panel's open shadow root, so:
  * no @import, no url() assets, no external fonts.
  *
- * Owns: the design tokens (defined on .mbx-body), the address header, the picker and
+ * Owns: the address header, the picker and
  * type-it form, the slots around the components, and the footer.
  * The profile editor ships its own CSS. The result content fits a 328px content box
  * (360px minus 16px each side).
@@ -17,17 +17,7 @@
 /* ---------- tokens + base ---------- */
 
 .mbx-body {
-  --mbx-ink: #18191b;
-  --mbx-muted: #62666d;
-  --mbx-hairline: rgba(0, 0, 0, .08);
-  --mbx-accent: #009485;
-  --mbx-accent-tint: #ecf8f6;
-  --mbx-halo: #00806f;
-  --mbx-halo-tint: #e6f4f1;
-  --mbx-meh: #9a6a00;
-  --mbx-meh-tint: #fff5db;
-  --mbx-failo: #b42318;
-  --mbx-failo-tint: #fdecea;
+  /* Theme colours inherit from the panel's shadow host. */
   --mbx-spectrum-low: #e27470;
   --mbx-spectrum-mid: #edbd64;
   --mbx-spectrum-high: #44ae91;
@@ -362,18 +352,18 @@
   padding: 0 12px;
   border: 1px solid transparent;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--mbx-accent, #009485) 75%, var(--mbx-ink, #18191b));
+  background: var(--mbx-button-bg);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
   line-height: 1;
-  color: var(--mbx-accent-tint, #ecf8f6);
+  color: var(--mbx-button-ink);
   white-space: nowrap;
   cursor: pointer;
 }
 
 .mbx-btn:hover {
-  background: color-mix(in srgb, var(--mbx-accent, #009485) 62%, var(--mbx-ink, #18191b));
+  background: var(--mbx-button-hover);
 }
 
 .mbx-btn:focus-visible {
@@ -436,11 +426,11 @@
 .mbx-fit__pillar[open] .mbx-fit__chevron { transform: rotate(225deg); }
 .mbx-fit__toggle > .mbx-fit__track, .mbx-fit__toggle > .mbx-fit__muted { grid-column: 1 / -1; }
 .mbx-fit__detail { padding-top: 9px; }
-.mbx-fit__facts { display: grid; gap: 10px; margin: 0; padding: 10px 12px; border-radius: 6px; background: #f6f8f7; }
+.mbx-fit__facts { display: grid; gap: 10px; margin: 0; padding: 10px 12px; border-radius: 6px; background: var(--mbx-raised); }
 .mbx-fit__fact dt { font-size: 11px; color: var(--mbx-muted); }
 .mbx-fit__fact dd { font-size: 12px; margin: 2px 0 0; overflow-wrap: anywhere; }
 .mbx-fit__track { position: relative; height: 7px; border-radius: 6px; margin: 2px 3px; background: linear-gradient(to right, var(--mbx-spectrum-low), var(--mbx-spectrum-mid) 48%, var(--mbx-spectrum-high)); }
-.mbx-fit__track::after { content: ''; position: absolute; left: var(--mbx-position); top: 50%; width: 5px; height: 13px; border-radius: 3px; background: var(--mbx-ink); transform: translate(-50%, -50%); box-shadow: 0 0 0 1px #fff; }
+.mbx-fit__track::after { content: ''; position: absolute; left: var(--mbx-position); top: 50%; width: 5px; height: 13px; border-radius: 3px; background: var(--mbx-ink); transform: translate(-50%, -50%); box-shadow: 0 0 0 1px var(--mbx-surface); }
 
 /* ---------- footer ---------- */
 
@@ -468,7 +458,7 @@
 /* ---------- motion + forced colours ---------- */
 
 @media (prefers-reduced-motion: no-preference) {
-  .mbx-meter__needle { transition: transform .42s ease; }
+  .mbx-fit__track::after { animation: mbx-fit-slide .9s cubic-bezier(.22,.8,.26,1); }
   .mbx-picker__item,
   .mbx-btn,
   .mbx-typeit__input {
@@ -480,6 +470,11 @@
   .mbx-linkbtn::after {
     transition: transform .15s ease;
   }
+}
+
+@keyframes mbx-fit-slide {
+  from { left: var(--mbx-from, 0%); }
+  to { left: var(--mbx-position); }
 }
 
 @media (forced-colors: active) {

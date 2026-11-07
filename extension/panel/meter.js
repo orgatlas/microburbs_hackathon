@@ -52,8 +52,11 @@ globalThis.MBX = globalThis.MBX || {};
     note.className = 'mbx-meter__note';
     root.append(readout, note);
     container.replaceChildren(root);
+    var sweep = null;
 
     function update(next) {
+      var from = doc.defaultView.getComputedStyle(needle).transform;
+      if (sweep) sweep.cancel();
       var total = next && next.total;
       var hasScore = Number.isFinite(total) && total >= 0 && total <= 100;
       var coverage = next && next.coverage;
@@ -63,6 +66,12 @@ globalThis.MBX = globalThis.MBX || {};
       if (hasScore) {
         value.textContent = String(total);
         needle.style.transform = 'rotate(' + (total * 1.8) + 'deg)';
+        if (!doc.defaultView.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          sweep = needle.animate([
+            { transform: from === 'none' ? 'rotate(0deg)' : from },
+            { transform: needle.style.transform }
+          ], { duration: 900, easing: 'cubic-bezier(.22,.8,.26,1)' });
+        }
       }
       note.textContent = !hasScore ? 'Not enough data to rate this home'
         : coverage && coverage.scored < coverage.of ? 'Based on ' + coverage.scored + ' of ' + coverage.of + ' pillars' : '';
@@ -70,7 +79,7 @@ globalThis.MBX = globalThis.MBX || {};
     }
 
     update(props);
-    return { update: update, el: root, destroy: function () { root.remove(); } };
+    return { update: update, el: root, destroy: function () { if (sweep) sweep.cancel(); root.remove(); } };
   }
 
   MBX.meter = { render: render };

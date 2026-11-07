@@ -156,6 +156,14 @@ globalThis.MBX = globalThis.MBX || {};
     var doc = container.ownerDocument;
     var opened = container.querySelector('.mbx-fit__pillar[open]');
     var openPillar = opened && opened.dataset.pillar;
+    var positions = Object.create(null);
+    container.querySelectorAll('.mbx-fit__track').forEach(function (track) {
+      var width = track.getBoundingClientRect().width;
+      var left = parseFloat(doc.defaultView.getComputedStyle(track, '::after').left);
+      if (width > 0 && Number.isFinite(left)) {
+        positions[track.getAttribute('aria-label')] = Math.max(0, Math.min(100, left / width * 100));
+      }
+    });
     function element(tag, className, text) {
       var node = doc.createElement(tag);
       if (className) node.className = className;
@@ -196,6 +204,7 @@ globalThis.MBX = globalThis.MBX || {};
         track.setAttribute('aria-valuemin', '0');
         track.setAttribute('aria-valuemax', '100');
         track.setAttribute('aria-valuenow', String(item.score));
+        track.style.setProperty('--mbx-from', (positions[item.label + ' fit'] || 0) + '%');
         track.style.setProperty('--mbx-position', item.score + '%');
         heading.appendChild(track);
       } else {
