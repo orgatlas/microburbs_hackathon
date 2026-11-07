@@ -17,7 +17,7 @@ header{padding:65px 24px 58px;text-align:center;color:white;background:linear-gr
 <body>
 <a class="skip" href="#report">Skip to report</a>
 <header>
-<span class="eyebrow">Microburbs Hackathon · Task 3 · 7 November 2026</span>
+<span class="eyebrow">Team Microscope · Microburbs Hackathon · Task 3 · 7 November 2026</span>
 <h1>Fit — does this home fit <em>you?</em></h1>
 <p>A personal fit score beside the listing, with the facts that move it. City of Sydney trial · Chrome extension.</p>
 </header>
@@ -30,7 +30,7 @@ header{padding:65px 24px 58px;text-align:center;color:white;background:linear-gr
 <div class="card"><strong class="big">Your priorities</strong><p>Commute, Safety, Lifestyle and Price. The facts describe the home; the weights describe the person considering it.</p></div>
 <div class="card"><strong class="big">Reasons you can check</strong><p>A matched-address header and sourced facts make the score inspectable. Missing data is missing evidence, never a zero.</p></div>
 </div>
-<p class="note">Scope: the product follows <a href="README.md">README.md</a>; the scoring section documents the current <a href="extension/sidepanel/score.js">side-panel code</a>. The teammate’s <a href="PLAN.md">competitor research plan</a> informs the comparison and matching checks; its earlier “Microscope” feature proposals are not claims about Fit. Endpoint families in the README are candidate inputs, not evidence that every signal is live. Results remain pending below.</p>
+<p class="note">Scope: the product follows <a href="README.md">README.md</a>; the scoring section documents the current <a href="extension/sidepanel/score.js">side-panel code</a>. The teammate’s <a href="PLAN.md">competitor research plan</a> informs the comparison and matching checks; its earlier feature proposals are not claims about the shipped panel. Endpoint families in the README are candidate inputs; the Results section records which signals were live on a real listing. Results below were measured on 7 November 2026; only the held-out number is still to come.</p>
 </section>
 <section id="portals" aria-labelledby="portals-title">
 <h2 id="portals-title">What buyers already see — and what our panel adds</h2>
@@ -66,11 +66,11 @@ header{padding:65px 24px 58px;text-align:center;color:white;background:linear-gr
 </section>
 <section id="sarah" class="highlight" aria-labelledby="sarah-title">
 <h2 id="sarah-title">Sarah is not the median buyer</h2>
-<p>Sarah is 19, works casual retail for about $600 a week, and her parents are moving her out. She needs somewhere she can afford that gets her to work. The README’s default profile is rent mode, a $250 weekly budget and a workplace at Broadway, Ultimo NSW.</p>
+<p>Sarah is 19, works casual retail for about $600 a week, and her parents are moving her out. She needs somewhere she can afford that gets her to work. Her test profile is rent mode, a $250 weekly budget and a workplace at Broadway, Ultimo NSW. She is a test fixture, not a default: the running product scores only the signed-in person’s own quiz.</p>
 <div class="weights" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-<ul class="legend" aria-label="Sarah’s default weights"><li><strong>35%</strong> Commute</li><li><strong>25%</strong> Safety</li><li><strong>15%</strong> Lifestyle</li><li><strong>25%</strong> Price</li></ul>
+<ul class="legend" aria-label="Sarah’s test weights"><li><strong>35%</strong> Commute</li><li><strong>25%</strong> Safety</li><li><strong>15%</strong> Lifestyle</li><li><strong>25%</strong> Price</li></ul>
 <h3>The clever step is quiz → weights</h3>
-<p>The six-question onboarding quiz turns answers into a stored profile and weights that sum to one. A work-focused person can put more emphasis on transport; someone who values nights out can give nightlife more influence. Sarah’s default puts the largest share on commute. It is a starting point, not a claim that all 19-year-olds share her priorities.</p>
+<p>The six-question onboarding quiz turns answers into a stored profile and weights that sum to one. A work-focused person can put more emphasis on transport; someone who values nights out can give nightlife more influence. Sarah’s test weights put the largest share on commute. It is a starting point, not a claim that all 19-year-olds share her priorities.</p>
 <p>Personalisation changes the importance of the facts, not the facts themselves. It can also change a calculation: rental affordability uses the person’s income, and purchase affordability uses their budget. Parking and nightlife can respond to profile flags.</p>
 <p><strong>A useful tension:</strong> $250 is about 41.7% of Sarah’s $600 income. Her stated budget therefore falls into the README’s lowest rental-affordability band. “Within my budget” and “a low share of my income” are different questions. This is arithmetic from the persona, not a measured property result.</p>
 </section>
@@ -80,7 +80,7 @@ header{padding:65px 24px 58px;text-align:center;color:white;background:linear-gr
 <ol class="flow" aria-label="Scoring method"><li>Read supplied facts</li><li>Apply threshold bands</li><li>Average each dimension</li><li>Apply personal weights</li></ol>
 <p>Each dimension is the rounded average of its scored signals. Each signal counts once, except parking and nightlife: their profile flag gives full weight when true, half when absent, and zero when false. Missing or unreadable signals are excluded.</p>
 <p>Fit is the rounded sum of dimension score × profile weight, divided by the sum of weights for scored dimensions. Empty dimensions are excluded and the remaining weights expand proportionally. No positively weighted evidence means “Not scored”, not zero. For example, only Commute 100 and Price 0 with Sarah’s weights gives round(35 ÷ 60 × 100) = 58.</p>
-<p>Sarah’s default is Commute 35%, Safety 25%, Lifestyle 15%, Price 25%. Valid weights are scaled to total 100%; unusable weights in an otherwise recognised profile become 25% each. Missing or unrecognisable profiles use Sarah.</p>
+<p>Sarah’s test weights are Commute 35%, Safety 25%, Lifestyle 15%, Price 25%. Valid weights are scaled to total 100%; unusable weights in an otherwise recognised profile become 25% each. With no saved profile there is no score: the panel shows the matched address and a “Take the quiz to see your fit” button.</p>
 <p>The three-pillar quiz conversion fixes Commute at 25% and shares the remaining 75% between Safety, Lifestyle and Price in the quiz’s proportions; it selects buy mode and maps the purchase budget. Car selection controls parking; buzzing / quiet controls nightlife. The four displayed tracks are read-only meters. Editing the saved profile through onboarding triggers recalculation.</p>
 <p>Bands below include their written endpoints. Only transport, work and CBD distances taper: after the 50-point plateau, score falls in a straight line to zero at 1,200 m, 10 km and 8 km respectively, rounded to the nearest integer. All other rows use steps.</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Implemented scoring thresholds; scroll horizontally on a small screen">
@@ -114,7 +114,7 @@ header{padding:65px 24px 58px;text-align:center;color:white;background:linear-gr
 <li><strong>A:</strong> Property amenities/nearby.</li>
 <li><strong>C:</strong> Suburb crime/summary; the benchmark can be national, not necessarily the suburb.</li>
 <li><strong>H:</strong> Property risks/all.</li>
-<li><strong>R:</strong> Property rent-history-latest.</li>
+<li><strong>R:</strong> Property rent-history-latest (latest advertised rent); otherwise suburb market/rent-map (mesh-block median for the property type); otherwise suburb market/median-rent (suburb median for the type). The panel names the source used.</li>
 <li><strong>V:</strong> Property valuation/avm.</li>
 <li><strong>None:</strong> Social housing is explicitly rejected by the adapter and never enters the panel score; low/mid/high are reserved scorer bands.</li>
 </ul>
@@ -158,19 +158,57 @@ header{padding:65px 24px 58px;text-align:center;color:white;background:linear-gr
 </div>
 <p>Commute times shown in the panel are labelled “est.” and estimated from straight-line distance at typical mode speeds (walk 5, cycle 15, train/light rail 25, drive 20 km/h). The production version will replace them with real journey times from the Transport for NSW Open Data Trip Planner API, which Microburbs does not provide.</p>
 </section>
-<section id="results" class="highlight pending" aria-labelledby="results-title">
-<span class="badge">PLACEHOLDER — fill at 14:15, 7 November 2026 (Sydney)</span>
+<section id="results" class="highlight" aria-labelledby="results-title">
+<span class="badge">Measured 7 November 2026 (Sydney): live proxy and local stack</span>
 <h2 id="results-title">What worked / what didn’t</h2>
-<p><strong>Results have not been entered.</strong> Record observed behaviour from the demonstrated build, not expectations or fixtures presented as live evidence.</p>
+<p><strong>Observed today, not expected.</strong> Live results come from the team proxy calling the Microburbs API with the real key. Test-suite results are fixture tests of the code, labelled as such, not live evidence.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Test results; scroll horizontally on a small screen">
+<table>
+<caption>Test suites run at 14:25 on 7 November 2026. They check the code against fixtures, not live data.</caption>
+<thead><tr><th scope="col">Suite</th><th scope="col">Command</th><th scope="col">Result</th></tr></thead>
+<tbody>
+<tr><th scope="row">Extension side panel</th><td><code>node --test extension/sidepanel/score.test.js extension/sidepanel/fit.test.js</code></td><td>125 tests pass, 0 fail</td></tr>
+<tr><th scope="row">Address extraction</th><td><code>node extension/address.test.js</code></td><td>12 assertions pass</td></tr>
+<tr><th scope="row">Proxy</th><td><code>cd proxy &amp;&amp; npm test</code></td><td>14 of 14 tests pass (4 address parser, 10 Contract 2)</td></tr>
+<tr><th scope="row">Accounts backend (Django)</th><td><code>cd backend &amp;&amp; python manage.py test</code></td><td>11 of 11 tests pass</td></tr>
+</tbody></table></div>
+<h3>Live signals on the Zetland listing</h3>
+<p>Listing: 401/2 Victoria Park Parade, Zetland. The proxy matched it to <strong>Unit 401, 2 Victoria Park Parade, Zetland</strong> with confidence <code>exact</code>: a unit-level match with no alternative candidates. <strong>14 of 18 signals were available</strong> in the live answer, measured with the test persona’s work address.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Zetland signal availability; scroll horizontally on a small screen">
+<table>
+<caption>Count of signals with <code>available: true</code> in one live proxy answer, 7 November 2026. Counts only; raw API values are not reproduced.</caption>
+<thead><tr><th scope="col">Dimension</th><th scope="col">Available</th><th scope="col">Unavailable</th></tr></thead>
+<tbody>
+<tr><th scope="row">Commute</th><td>5 of 5: nearest transport, work distance, CBD distance, parking, busy road</td><td>None</td></tr>
+<tr><th scope="row">Safety</th><td>2 of 4: mesh-block crime, livability</td><td>Hazards (<code>risks/all</code>); social-housing estimate (not connected)</td></tr>
+<tr><th scope="row">Lifestyle</th><td>3 of 3: daily amenities, nightlife, green space</td><td>None</td></tr>
+<tr><th scope="row">Price</th><td>4 of 6: rent affordability, running costs, development activity, negotiating room</td><td>Buy affordability (<code>valuation/avm</code>); comparable value (<code>comparables/recent-sales-nearby</code>)</td></tr>
+<tr><th scope="row">Total</th><td><strong>14 of 18</strong></td><td>4</td></tr>
+</tbody></table></div>
+<h3>The quiz moves the number</h3>
+<p>Proved in headed Chromium with the unpacked extension and no direct storage writes. We signed up on the website (:3001) and took the quiz. The dashboard passed the saved profile through the extension’s site bridge to <code>chrome.storage.local.profile</code>, and the side panel scored the Zetland listing with that quiz’s own weights. We then signed out, retook the quiz with different answers and reopened the same listing. Both panels were screenshotted.</p>
 <div class="grid">
-<div class="card"><h3>What worked — pending</h3><p>At 14:15, record which real REA and Domain pages produced a correct match, which Microburbs signals populated, and whether saved-profile changes moved the score as intended. Identify the build and supporting test or demo evidence.</p></div>
-<div class="card"><h3>What didn’t — pending</h3><p>At 14:15, record failed extraction or matches, wrong-unit or building-only results, missing signals, upstream errors and unsupported cases. State the visible fallback and remaining limitations. Distinguish live checks from mock checks.</p></div>
+<div class="card"><strong class="big">38</strong><p>Fit score on the Zetland listing after the first quiz.</p></div>
+<div class="card"><strong class="big">60</strong><p>Fit score on the same listing after the quiz was retaken with different answers. Only the quiz answers changed.</p></div>
 </div>
+<p>With no saved profile, the panel shows the matched address and a “Take the quiz to see your fit” button, with no speedo and no numbers. The running product has no default persona.</p>
+<h3>Where the rent comes from</h3>
+<ol class="flow" aria-label="Rent source chain"><li>Latest advertised rent: <code>/v1/properties/{gnaf_id}/rent-history-latest</code></li><li>Otherwise the mesh-block median for the property type: <code>/v1/suburbs/{suburb}/market/rent-map</code></li><li>Otherwise the suburb median for the type: <code>/v1/suburbs/{suburb}/market/median-rent</code></li></ol>
+<p>The proxy takes the first source that answers. The panel names the source it used under the rent line. On the Zetland listing the first source answered: the latest advertised rent, labelled “weekly basis assumed”. The advert is dated February 2025, so it is a reference point, not today’s asking rent.</p>
+<h3>What didn’t work</h3>
+<ul>
+<li><strong>No stop names.</strong> The proxy passes only the mode and straight-line distance from <code>transport/nearby</code>, so the panel says “Nearest bus stop” without naming the stop.</li>
+<li><strong>No per-bedroom rent.</strong> The fallback medians are by property type, not by bedroom count, and the API has no per-property rental valuation. Without an advert, a one-bedroom and a three-bedroom unit in the same area get the same rent reference.</li>
+<li><strong>Address geocode misses.</strong> Work addresses without a street number, such as “Broadway, Ultimo”, and short forms such as “1 Martin Place” sometimes failed to resolve. The work-distance signal is then unavailable, not guessed.</li>
+<li><strong>Live listing sites block automated browsers.</strong> The automated proofs therefore used archived listing markup. The Internet Archive index was briefly down while we collected pages.</li>
+<li><strong>Four signals missing on Zetland.</strong> Hazards, the social-housing estimate, buy affordability and comparable value were unavailable in the live answer. The panel leaves them out and does not score them as zero.</li>
+</ul>
 </section>
 <section id="held-out" class="highlight pending" aria-labelledby="held-out-title">
-<span class="badge">PLACEHOLDER — fill at 14:15, 7 November 2026 (Sydney)</span>
+<span class="badge">PLACEHOLDER: the held-out number is entered at 14:50, 7 November 2026 (Sydney)</span>
 <h2 id="held-out-title">Held-out address-match check</h2>
-<p><strong>No held-out rate is claimed yet.</strong> Use listings that were not used to build or tune the matcher. The README’s three rental and three sale end-to-end cases are not automatically held-out evidence.</p>
+<p><strong>Held-out result: HELD_OUT</strong></p>
+<p><strong>No other held-out figure is claimed.</strong> Use listings that were not used to build or tune the matcher. The README’s three rental and three sale end-to-end cases are not automatically held-out evidence.</p>
 <ol>
 <li>Freeze the tested build. The plan proposes setting aside ten addresses from a larger 30–40-listing collection before tuning. If that was not done, choose fresh listings after freezing and disclose the selection method. Include both portals and difficult unit / street-number formats.</li>
 <li>Independently check the returned address and address ID against the intended home. Count exact-home, building-only, no-match / asked-user and wrong-match outcomes separately; record ambiguity within the asked-user category.</li>
@@ -179,7 +217,7 @@ header{padding:65px 24px 58px;text-align:center;color:white;background:linear-gr
 </ol>
 <div class="table-wrap">
 <table>
-<caption>Fill these fields with observed results at 14:15.</caption>
+<caption>These fields are filled with observed results at 14:50.</caption>
 <thead><tr><th scope="col">Measure</th><th scope="col">Result</th></tr></thead>
 <tbody>
 <tr><th scope="row">Build, sample and checking method</th><td>Pending — not entered</td></tr>
