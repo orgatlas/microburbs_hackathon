@@ -4,13 +4,13 @@ The backend keeps the Microburbs key private, matches addresses to homes, and tu
 
 ## What's already here
 
-- `/api/health`, `/api/quiz` and `/api/match` work in mock mode, so Hrithik and Daniel aren't blocked.
+- `/api/health` and `/api/quiz` work. There is no mock mode: `/api/match` checks its input, then answers 501 `not_implemented` until real matching lands, and the extension's facts come from the live proxy (`GET http://localhost:3000/lookup?address=...`).
 - [`matching/microburbs.py`](matching/microburbs.py) is the API client, with auth, caching and 429 retries. It hasn't been run against the live API yet.
 - [`matching/scoring.py`](matching/scoring.py) is an empty stub.
 
 ## Setup
 
-Put the team key in `backend/.env` as `MICROBURBS_API_KEY`. Set `MATCH_MOCK=False` when real matching is ready. Run the tests with `.venv/bin/python manage.py test`.
+Put the team key in `backend/.env` as `MICROBURBS_API_KEY`. Run the tests with `.venv/bin/python manage.py test`.
 
 API docs are at https://api-ht.microburbs.com.au/docs and the full spec is at `/openapi.json`.
 
