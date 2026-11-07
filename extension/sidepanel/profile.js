@@ -1,11 +1,11 @@
 // MicroMatch side panel: the profile the fit score is weighed against (README Contract 1).
 //
-//   SARAH                      the default profile, verbatim from README Contract 1 (frozen)
-//   loadProfile()              chrome.storage.local "profile" -> normalised profile; missing -> SARAH + isDefault:true
+//   loadProfile()              chrome.storage.local "profile" -> normalised profile; missing or unreadable -> null
+//                              (there is no default persona: no profile means "take the quiz", never a score)
 //   normalizeProfile(raw)      README shape passes through (invalid fields dropped); the backend quiz shape
 //                              (docs/API_CONTRACT.md, POST /api/match "profile") converts, marked converted:true
 //   watchProfile(cb)           calls cb(normalisedProfile) whenever onboarding saves a new profile; returns unsubscribe
-//   profileSummary(profile)    "Scored for Sarah · renting · up to $250/wk · income $600/wk"
+//   profileSummary(profile)    "Scored for <name> · renting · up to $<budget>/wk · income $<income>/wk"
 //   openOnboarding()           opens extension/onboarding/index.html in a new tab
 //   renderProfile(container, profile, { onOpenOnboarding }) -> { update(profile), el }
 //
@@ -26,19 +26,6 @@ const DOT = " · ";
 function deepFreeze(o) {
   for (const v of Object.values(o)) if (v && typeof v === "object") deepFreeze(v);
   return Object.freeze(o);
-}
-
-export const SARAH = deepFreeze({
-  name: "Sarah",
-  mode: "rent",
-  budgetWeekly: 250,
-  incomeWeekly: 600,
-  workAddress: "Broadway, Ultimo NSW",
-  weights: { commute: 0.35, safety: 0.25, lifestyle: 0.15, price: 0.25 },
-});
-
-function sarahDefault() {
-  return { ...SARAH, weights: { ...SARAH.weights }, isDefault: true };
 }
 
 /* ---------- validation ---------- */
@@ -162,8 +149,7 @@ function fromReadme(raw) {
     p.converted = true;
     if (isObj(raw.quiz)) p.quiz = cleanQuiz(raw.quiz);
   }
-  if (raw.isDefault === true) p.isDefault = true;
-  return found ? p : sarahDefault(); // nothing recognisable: treat as no profile
+  return found ? p : null; // nothing recognisable: treat as no profile
 }
 
 export function normalizeProfile(raw) {
@@ -174,7 +160,7 @@ export function normalizeProfile(raw) {
       raw = null;
     }
   }
-  if (!isObj(raw)) return sarahDefault();
+  if (!isObj(raw)) return null;
   return isQuizShape(raw) ? fromQuiz(raw) : fromReadme(raw);
 }
 
@@ -200,7 +186,7 @@ export async function loadProfile() {
       const got = await Promise.race([area.get(STORAGE_KEY), timeout]);
       raw = got ? got[STORAGE_KEY] : undefined;
     } catch (err) {
-      console.warn("[MicroMatch] could not read the profile, using the Sarah example", err);
+      console.warn("[MicroMatch] could not read the profile; showing the take-the-quiz state", err);
     } finally {
       clearTimeout(timer);
     }
@@ -249,7 +235,7 @@ function shortPrice(n) {
 }
 
 export function profileSummary(profile) {
-  const p = profile || SARAH;
+  const p = profile || {};
   const parts = [`Scored for ${p.name || "you"}`];
   if (p.mode === "buy") {
     parts.push("buying");
@@ -290,8 +276,6 @@ const CSS = `
 .mm-profile__toggle{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;margin:0;padding:7px 8px 7px 9px;border:0;border-radius:8px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .mm-profile__toggle:hover{background:var(--mm-accent-tint,#ecf8f6)}
 .mm-profile__text{flex:1 1 auto;min-width:0}
-.mm-profile__tag{display:inline-block;margin-left:6px;font-size:11px;line-height:16px;padding:0 6px;border:1px solid var(--mm-hairline,rgba(0,0,0,.08));border-radius:999px;color:var(--mm-muted,#62666d);vertical-align:1px}
-.mm-profile__tag[hidden]{display:none}
 .mm-profile__chevron{flex:none;width:14px;height:14px;color:var(--mm-muted,#62666d);transition:transform .15s ease}
 .mm-profile[data-collapsed="false"] .mm-profile__chevron{transform:rotate(180deg)}
 .mm-profile__gear{flex:none;display:inline-grid;place-items:center;width:32px;height:32px;margin:0;padding:0;border:0;border-radius:8px;background:none;color:var(--mm-muted,#62666d);cursor:pointer}
@@ -300,7 +284,6 @@ const CSS = `
 .mm-profile button:focus-visible{outline:2px solid var(--mm-accent,#009485);outline-offset:1px}
 .mm-profile__details{padding:2px 12px 12px;border-top:1px solid var(--mm-hairline,rgba(0,0,0,.08))}
 .mm-profile__details[hidden]{display:none}
-.mm-profile__note{margin:10px 0 0;padding:8px 10px;border-radius:8px;background:var(--mm-accent-tint,#ecf8f6);color:var(--mm-ink,#18191b)}
 .mm-profile__aside{margin:10px 0 0;color:var(--mm-muted,#62666d)}
 .mm-profile__facts{display:grid;grid-template-columns:104px 1fr;gap:4px 8px;margin:10px 0 0}
 .mm-profile__facts dt{color:var(--mm-muted,#62666d)}
@@ -367,7 +350,6 @@ function budgetText(p) {
 
 function buildDetails(p, open) {
   const kids = [];
-  if (p.isDefault) kids.push(h("p", "mm-profile__note", "Example profile. Take the quiz to make it yours."));
   if (p.converted) {
     kids.push(
       h("p", "mm-profile__aside", `From your quiz answers. The quiz has no commute question, so commute is set to ${Math.round(QUIZ_COMMUTE_WEIGHT * 100)}%.`),
@@ -406,7 +388,7 @@ function buildDetails(p, open) {
   flags.append(h("dt", "", "Wants nightlife"), h("dd", "", flagText(p.nightlife)));
   kids.push(flags);
 
-  const retake = h("button", "mm-profile__retake", p.isDefault ? "Take the quiz" : "Retake the quiz");
+  const retake = h("button", "mm-profile__retake", "Retake the quiz");
   retake.type = "button";
   retake.addEventListener("click", open);
   kids.push(retake);
@@ -430,9 +412,8 @@ export function renderProfile(container, profile, { onOpenOnboarding } = {}) {
   toggle.type = "button";
   toggle.setAttribute("aria-controls", detailsId);
   const summary = h("span", "mm-profile__summary");
-  const tag = h("span", "mm-profile__tag", "Example");
   const text = h("span", "mm-profile__text");
-  text.append(summary, tag);
+  text.append(summary);
   toggle.append(text, icon("mm-profile__chevron", [["path", { d: "M6 9l6 6 6-6" }]]));
 
   const gear = h("button", "mm-profile__gear");
@@ -456,11 +437,14 @@ export function renderProfile(container, profile, { onOpenOnboarding } = {}) {
 
   function update(next) {
     const p = normalizeProfile(next);
+    root.hidden = !p; // no profile: nothing to summarise (the panel shows "Take the quiz" instead)
+    if (!p) {
+      details.replaceChildren();
+      return;
+    }
     root.dataset.mode = p.mode;
-    root.dataset.default = String(!!p.isDefault);
     root.dataset.converted = String(!!p.converted);
     summary.textContent = profileSummary(p);
-    tag.hidden = !p.isDefault;
     details.replaceChildren(...buildDetails(p, open));
   }
 
