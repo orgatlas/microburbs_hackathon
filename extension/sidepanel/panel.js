@@ -19,7 +19,6 @@ const CONFIDENCE_TEXT = {
 };
 
 const view = document.getElementById("view");
-const mockBadge = document.querySelector(".mm-mock");
 const picker = document.getElementById("mm-picker");
 const pickerToggle = document.querySelector('[data-action="not-this-one"]');
 const form = document.querySelector('form[data-slot="typeit"]');
@@ -233,7 +232,7 @@ function render() {
   try {
     adapted = adapt(stored);
   } catch (error) {
-    adapted = { status: "error", message: `The panel could not read this answer (${error?.message || error}).`, mock: false };
+    adapted = { status: "error", message: `The panel could not read this answer (${error?.message || error}).` };
   }
   let state = STATES.has(adapted.status) ? adapted.status : "error";
   clearTimeout(stallTimer);
@@ -247,7 +246,6 @@ function render() {
       stallTimer = setTimeout(refresh, (Number.isFinite(started) ? Math.max(0, started + STALL_MS - Date.now()) : STALL_MS) + 1000);
     }
   }
-  mockBadge.hidden = !adapted.mock;
   const fetched = adapted.fetchedAt ? new Date(adapted.fetchedAt) : null;
   // The footer's as-of: when these facts were fetched (no backend factor carries its own date yet).
   // Only for a scored home; an error or "outside coverage" answer has no facts to date.
@@ -289,8 +287,18 @@ function render() {
     bind("message", adapted.message || "MicroMatch covers the City of Sydney only for now.");
     bind("status", "Outside the City of Sydney.");
   } else if (state === "error") {
-    bind("error", [adapted.message, adapted.code ? `(${adapted.code})` : null].filter(Boolean).join(" "));
-    bind("status", "We couldn't check this home.");
+    // Offline (proxy down, unreachable or too slow): one line, "Backend offline — retry", no numbers.
+    const offline = adapted.code === "offline";
+    const section = view.querySelector('[data-for="error"]');
+    if (offline) section.dataset.code = "offline";
+    else delete section.dataset.code;
+    const line = view.querySelector('[data-bind="error"]');
+    if (offline) {
+      line.replaceChildren("Backend offline — ", el("button", { type: "button", className: "mm-retry-inline", dataset: { action: "retry" } }, "retry"));
+    } else {
+      line.replaceChildren([adapted.message, adapted.code ? `(${adapted.code})` : null].filter(Boolean).join(" "));
+    }
+    bind("status", offline ? "Backend offline. Retry." : "We couldn't check this home.");
   } else if (state === "need_address") {
     bind("status", "No address on this page. Type it below.");
   } else if (state === "empty") {
