@@ -1,7 +1,8 @@
 // MicroMatch service worker: the only part of the extension that talks to the network.
 // In: the listing ADDRESS from the content script (nothing else is read off the page), or a typed
-// address / chosen candidate from the side panel. Out: POST ${API_BASE}/match with
-// { address, gnaf_id, profile } to the team backend, which holds the Microburbs key.
+// address / chosen candidate from the side panel. Out: GET ${API_BASE}/lookup?address=&work=
+// (work = profile.workAddress) to the team proxy, which holds the Microburbs key and answers
+// README Contract 2 ({ matched, facts, outsideCoverage }).
 // Each tab's result lives in chrome.storage.session under "tab:<id>"; the side panel renders it.
 import { API_BASE } from "./config.js";
 // Namespace imports on purpose: a renamed or missing export can never stop the worker from
@@ -29,7 +30,7 @@ const CACHEABLE = new Set(["matched", "ambiguous", "no_match", "out_of_area"]);
 const NETWORK_ERROR = Object.freeze({
   status: "error",
   code: "network",
-  message: "Could not reach MicroMatch. Is the backend running on localhost:8000?",
+  message: "Could not reach MicroMatch. Is the proxy running on localhost:3000?",
 });
 
 const tabKey = (tabId) => `tab:${tabId}`; // what the panel renders
@@ -181,13 +182,18 @@ async function setBadge(tabId, record, profile) {
 
 // ---------- the backend call ----------
 
-async function fetchMatch(body, profile) {
+async function fetchMatch(body, profile, label) {
+  // The proxy matches by address text; a picked candidate is resent by its display name.
+  const address = body.address || label || null;
+  if (!address) return { status: "error", code: "missing_address", message: "Type the address to check it." };
+  const url = new URL(`${API_BASE}/lookup`);
+  url.searchParams.set("address", address.slice(0, MAX_ADDRESS_CHARS));
+  const work = typeof profile?.workAddress === "string" ? profile.workAddress.trim() : "";
+  if (work) url.searchParams.set("work", work.slice(0, MAX_ADDRESS_CHARS));
   let response;
   try {
-    response = await fetch(`${API_BASE}/match`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ address: body.address, gnaf_id: body.gnaf_id, profile }),
+    response = await fetch(url, {
+      headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch (error) {
@@ -221,19 +227,25 @@ async function fetchMatch(body, profile) {
       httpStatus: response.status,
     };
   }
-  if (!response.ok) {
+  // README Contract 2 has no status field: derive one for the badge, the cache and the panel.
+  // The proxy answers 403 + outsideCoverage for addresses outside the City of Sydney.
+  if (data.error && typeof data.error === "object") {
     return {
       ...data,
+      contract: 2,
       status: "error",
-      code: typeof data.code === "string" && data.code ? data.code : `http_${response.status}`,
-      message: typeof data.message === "string" && data.message ? data.message : `MicroMatch answered HTTP ${response.status}.`,
+      code: typeof data.error.code === "string" && data.error.code ? data.error.code : `http_${response.status}`,
+      message: typeof data.error.message === "string" && data.error.message ? data.error.message : `MicroMatch answered HTTP ${response.status}.`,
       httpStatus: response.status,
     };
   }
-  if (typeof data.status !== "string") {
-    return { status: "error", code: "bad_response", message: "MicroMatch sent an answer the panel cannot read.", httpStatus: response.status };
+  if (data.outsideCoverage === true) return { ...data, contract: 2, status: "out_of_area", httpStatus: response.status };
+  if (!response.ok) {
+    return { ...data, contract: 2, status: "error", code: `http_${response.status}`, message: `MicroMatch answered HTTP ${response.status}.`, httpStatus: response.status };
   }
-  return data;
+  const matched = data.matched && typeof data.matched === "object" ? data.matched : null;
+  const status = !matched ? "no_match" : matched.gnaf_id ? "matched" : "ambiguous";
+  return { ...data, contract: 2, status };
 }
 
 // Every write to "tab:<id>" goes through here so the badge always follows the record.
@@ -280,7 +292,7 @@ async function requestMatch(tabId, rawBody, options = {}) {
   }
 
   await writeRecord(tabId, { status: "loading", query, request: body, label, pageUrl, startedAt: new Date().toISOString() }, profile);
-  const payload = await fetchMatch(body, profile);
+  const payload = await fetchMatch(body, profile, label);
   if (!isCurrent()) return; // superseded by a newer request or a URL change: drop it
   inflight.delete(tabId);
 
