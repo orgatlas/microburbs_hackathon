@@ -1,39 +1,43 @@
 1
-00:00:00,039 --> 00:00:11,952
+00:00:00,055 --> 00:00:11,951
 Sarah · 19 · casual retail · about $600 a week. Fresh install: MicroMatch reads only the listing's address.
 
 2
-00:00:12,002 --> 00:00:23,952
-Matched home: Unit 401, 2 Victoria Park Parade, Zetland (exact). No profile yet, so no score: take the quiz.
+00:00:12,001 --> 00:00:23,951
+Read from the page: 59 Portman Street (Exact match). No profile yet, so no score: take the quiz.
 
 3
-00:00:24,002 --> 00:00:35,952
+00:00:24,001 --> 00:00:35,951
 Sarah signs up on our website. Her account saves her quiz answers so the extension can use her own priorities.
 
 4
-00:00:36,002 --> 00:00:59,934
+00:00:36,001 --> 00:00:59,952
 First place, shift work, every dollar counts, public transport: each answer changes what matters to her.
 
 5
-00:00:59,984 --> 00:01:25,952
+00:01:00,002 --> 00:01:25,951
 Rent, a $250 budget, $600 a week income and her workplace: saved. These weights come from her answers, not a default.
 
 6
-00:01:26,002 --> 00:01:41,951
+00:01:26,001 --> 00:01:41,951
 Back on the listing. The panel loads Sarah's saved profile and the needle settles on her fit.
 
 7
-00:01:42,001 --> 00:01:57,950
-Commute: 2.6 km to work, the bus 66 m away. Straight-line distances; minutes marked est. are estimates. Sources sit under each fact.
+00:01:42,001 --> 00:01:57,952
+Commute: 2.6 km to work, Bus 167 m. Straight-line distances; minutes marked est. are estimates. Sources sit under each fact.
 
 8
-00:01:58,000 --> 00:02:15,952
-Cons: $1,100 a week rent is 183% of Sarah's $600 income. A nearby bus doesn't erase that trade-off.
+00:01:58,002 --> 00:02:15,952
+Cons: $1,600 a week rent is 267% of Sarah's $600 income. A nearby bus doesn't erase that trade-off.
 
 9
-00:02:16,002 --> 00:02:26,541
+00:02:16,002 --> 00:02:26,516
 Sign out. Second persona: Alex, a buyer with different priorities, takes the quiz.
 
 10
-00:02:26,591 --> 00:02:35,450
+00:02:26,566 --> 00:02:33,894
 Same home, different person: Alex's saved profile gives a different needle. The facts didn't change; the priorities did.
+
+11
+00:02:33,944 --> 00:02:42,896
+For Sarah, rent is 267% of her weekly income ($1,600 ÷ $600). Same home: Sarah 42 · Alex 65. MicroMatch by team Microscope.
