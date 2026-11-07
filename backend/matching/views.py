@@ -1,12 +1,10 @@
 """HTTP layer. The response shapes are defined in docs/API_CONTRACT.md."""
 import json
 
-from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from .mock import mock_match
 from .quiz import QUIZ
 
 
@@ -16,7 +14,7 @@ def error(code, message, status):
 
 @require_GET
 def health(request):
-    return JsonResponse({"status": "ok", "mock": settings.MATCH_MOCK})
+    return JsonResponse({"status": "ok"})
 
 
 @require_GET
@@ -34,8 +32,10 @@ def match(request):
     if not isinstance(body, dict) or not (body.get("address") or body.get("gnaf_id")):
         return error("missing_address", "Send an address or a gnaf_id.", 400)
 
-    if settings.MATCH_MOCK:
-        return JsonResponse(mock_match(body))
-
-    # TODO(Carl): resolve the address, fetch facts, then score. See backend/SPEC.md.
-    return error("not_implemented", "Real matching is not built yet. Set MATCH_MOCK=True.", 501)
+    # There is no mock mode. Until real matching lands here (see backend/SPEC.md),
+    # the extension's facts come from the live proxy.
+    return error(
+        "not_implemented",
+        "Matching runs in the proxy for now: GET http://localhost:3000/lookup?address=...",
+        501,
+    )
