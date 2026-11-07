@@ -79,3 +79,6 @@
     border-color: currentColor;
   }
 }
+
+/* Dimension dropdowns show the human fact lines only; sources and as-of stay under Pros and Cons. */
+details.mbx-fit__pillar .mbx-fit__fact-src { display: none; }
