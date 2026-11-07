@@ -4,7 +4,7 @@ The backend keeps the Microburbs key private, matches addresses to homes, and tu
 
 ## What's already here
 
-- `/api/health` and `/api/quiz` work. There is no mock mode: `/api/match` checks its input, then answers 501 `not_implemented` until real matching lands, and the extension's facts come from the live proxy (`GET http://localhost:3000/lookup?address=...`).
+- `/api/health` works, and accounts and saved quizzes are in `accounts/`. There is no mock mode: `/api/match` checks its input, then answers 501 `not_implemented` until real matching lands, and the extension's facts come from the live proxy (`GET http://localhost:3000/lookup?address=...`).
 - [`matching/microburbs.py`](matching/microburbs.py) is the API client, with auth, caching and 429 retries. It hasn't been run against the live API yet.
 - [`matching/scoring.py`](matching/scoring.py) is an empty stub.
 

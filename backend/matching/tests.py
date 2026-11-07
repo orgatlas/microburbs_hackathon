@@ -18,10 +18,6 @@ class ContractTests(TestCase):
         self.assertEqual(self.client.get("/api/health").json(), {"status": "ok"})
         self.assertFalse(hasattr(settings, "MATCH_MOCK"))
 
-    def test_quiz_has_weights_question(self):
-        ids = [q["id"] for q in self.client.get("/api/quiz").json()["questions"]]
-        self.assertIn("weights", ids)
-
     def test_match_validates_input_first(self):
         bad_json = self.client.post("/api/match", "not json", content_type="application/json")
         self.assertEqual((bad_json.status_code, bad_json.json()["code"]), (400, "invalid_json"))

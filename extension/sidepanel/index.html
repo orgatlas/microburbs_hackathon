@@ -27,6 +27,23 @@
     </button>
   </header>
 
+  <!-- Account: account.js shows one of these. Logging in loads the user's saved quiz weights from Django. -->
+  <section class="mm-account" aria-label="Your MicroMatch account">
+    <form class="mm-account__form" data-account="logged-out" hidden>
+      <p class="mm-account__title">Log in to score homes for you</p>
+      <label>Email <input type="email" name="email" autocomplete="email" required></label>
+      <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
+      <p class="mm-account__error" data-account="error" role="alert" hidden></p>
+      <button type="submit" class="mm-btn">Log in</button>
+      <a data-account="signup" target="_blank" rel="noopener">New here? Create an account</a>
+    </form>
+    <div class="mm-account__row" data-account="logged-in" hidden>
+      <span data-account="summary"></span>
+      <a data-account="quiz" target="_blank" rel="noopener"></a>
+      <button type="button" class="mm-account__link" data-account="logout">Log out</button>
+    </div>
+  </section>
+
   <!-- Screen-reader announcement of each state change. panel.js sets one short line here,
        e.g. "Checking <address>…" or "Matched <address>. Fit <n> of 100." -->
   <p class="mm-sr-only" id="mm-status" data-bind="status" role="status" aria-live="polite" aria-atomic="true"></p>

@@ -14,10 +14,6 @@ This is the agreement between the backend, extension and website. Carl owns it. 
 { "status": "ok" }
 ```
 
-## `GET /api/quiz`
-
-Returns the questions to render. The source is [`backend/matching/quiz.py`](../backend/matching/quiz.py). Question types are `single`, `multi`, `number` and `weights`.
-
 ## `POST /api/match`
 
 Send either `address` or `gnaf_id`. Send `gnaf_id` once the user has picked a candidate. `profile` can be `null`, in which case the backend uses equal weights and skips personal checks such as budget.
@@ -136,4 +132,4 @@ The website uses these routes. Local base URL: `http://localhost:8001/api`. Send
 | `GET /me` | none | `user`, `latest_quiz`, `history` |
 | `POST /quiz-results` | `answers`, `weights`, `categories`, `archetype`, `details`, `extension_profile` | the saved result |
 
-Each retake adds a new result, and the newest one is the live profile. After saving, the website posts `extension_profile` (README Contract 1) to `extension/src/site-bridge.js`, which writes it to `chrome.storage.local`. Logging out clears it.
+Each retake adds a new result, and the newest one is the live profile. The side panel logs in with the same routes, then loads `latest_quiz` from `GET /me` into `chrome.storage.local`: `extension_profile` (README Contract 1) plus `metricWeights`, the 11 stored weights. `score.js` multiplies each signal by its metric weight. The website also posts the profile to `extension/src/site-bridge.js` straight after a save.

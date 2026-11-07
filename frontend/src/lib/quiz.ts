@@ -191,6 +191,7 @@ export function extensionProfile(name: string, weights: Points, details: Details
     ...(details.address ? { workAddress: details.address } : {}),
     hasCar: flags.includes("car"),
     nightlife: flags.includes("nightlife"),
+    metricWeights: weights,
     weights: {
       commute: categories.commuting,
       safety: weights.live,

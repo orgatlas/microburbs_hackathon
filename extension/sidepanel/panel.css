@@ -539,3 +539,14 @@ button:disabled { cursor: default; opacity: .55; }
 .mm-missing > summary:focus-visible { outline: 2px solid var(--mm-accent, #009485); outline-offset: 2px; border-radius: 4px; }
 .mm-missing > ul { margin-top: 6px; }
 [data-for="no_match"] > ul:empty { display: none; }
+
+/* Account: login form and the logged-in row under the header. */
+.mm-account { padding: 8px 16px; border-bottom: 1px solid var(--mm-hairline); font-size: 13px; }
+.mm-account__form { display: grid; gap: 8px; }
+.mm-account__form label { display: grid; gap: 2px; font-weight: 600; }
+.mm-account__form input { min-height: 36px; padding: 6px 8px; border: 1px solid var(--mm-muted); border-radius: 6px; font: inherit; color: inherit; background: var(--mm-bg); }
+.mm-account__title { margin: 0; font-weight: 700; }
+.mm-account__error { margin: 0; color: var(--mm-failo); }
+.mm-account__row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.mm-account__row > span { flex: 1 1 100%; }
+.mm-account__link { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }

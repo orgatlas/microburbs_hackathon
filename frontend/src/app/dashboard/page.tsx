@@ -19,7 +19,7 @@ export default function Dashboard() {
   const latest = account?.latest_quiz;
 
   useEffect(() => {
-    if (latest) sendProfileToExtension(latest.extension_profile).then(setConnected);
+    if (latest) sendProfileToExtension({ ...latest.extension_profile, metricWeights: latest.weights }).then(setConnected);
   }, [latest]);
 
   async function signOut() {

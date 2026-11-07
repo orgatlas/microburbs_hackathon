@@ -5,8 +5,6 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from .quiz import QUIZ
-
 
 def error(code, message, status):
     return JsonResponse({"status": "error", "code": code, "message": message}, status=status)
@@ -15,11 +13,6 @@ def error(code, message, status):
 @require_GET
 def health(request):
     return JsonResponse({"status": "ok"})
-
-
-@require_GET
-def quiz(request):
-    return JsonResponse(QUIZ)
 
 
 @csrf_exempt

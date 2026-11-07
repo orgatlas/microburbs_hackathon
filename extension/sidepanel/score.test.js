@@ -771,3 +771,25 @@ describe("(9) adapter.js -> score.js on a synthetic README Contract 2 answer", (
     assert.equal(scoreListing(a, sarah()).fit, null);
   });
 });
+
+describe("quiz metric weights", () => {
+  const facts = {
+    commute: {
+      transit_walk: { available: true, value: 100, unit: "m" },
+      road_noise: { available: true, value: 2, unit: "level" },
+    },
+  };
+  const weights = { commute: 1, safety: 0, lifestyle: 0, price: 0 };
+  const metrics = (pt, peak) => ({ dist: 0.1, pt, park: 0.1, peak, live: 0.1, amen: 0.1, comm: 0.1, val: 0.05, dev: 0.05, rates: 0.05, afford: 0.05 });
+
+  test("a metric's weight multiplies its signal inside the dimension", () => {
+    const transport = scoreListing({ facts }, { mode: "rent", weights, metricWeights: metrics(0.3, 0.05) });
+    const busyness = scoreListing({ facts }, { mode: "rent", weights, metricWeights: metrics(0.05, 0.3) });
+    assert.ok(transport.fit > busyness.fit);
+    assert.equal(transport.fit, Math.round((100 * 0.3) / 0.35));
+  });
+
+  test("without metric weights the signals count equally", () => {
+    assert.equal(scoreListing({ facts }, { mode: "rent", weights }).fit, 50);
+  });
+});

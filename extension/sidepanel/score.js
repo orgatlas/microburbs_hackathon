@@ -271,6 +271,7 @@ export function normalizeProfile(input) {
     }
     if (str(p.workAddress)) out.workAddress = str(p.workAddress);
     out.weights = normaliseWeights(p.weights);
+    if (isObj(p.metricWeights)) out.metricWeights = p.metricWeights;
     if (p.converted === true) out.converted = true;
   }
   for (const flag of ["hasCar", "nightlife"]) {
@@ -587,8 +588,36 @@ function dimensionSignals(adapted, dimension, profile) {
         signal = { available: true, value: n, unit: "spaces", label: LABELS.parking, source: "/v1/properties/{gnaf_id}/basics/all", asOf: null };
       }
     }
-    return scoreOne(dimension, key, signal, profile);
+    const item = scoreOne(dimension, key, signal, profile);
+    return { ...item, signalWeight: item.signalWeight * metricMultiplier(item.key, profile) };
   });
+}
+
+/*
+ * The quiz stores 11 metric weights in Django. Each one multiplies its signals inside a dimension,
+ * relative to an average metric (1/11), so a metric that matters more pulls its dimension harder.
+ * Signals with no quiz metric keep a multiplier of 1.
+ */
+const METRIC_COUNT = 11;
+const SIGNAL_METRICS = Object.freeze({
+  work_distance: "dist",
+  cbd_distance: "dist",
+  transit_walk: "pt",
+  parking: "park",
+  road_noise: "peak",
+  livability_vs_benchmark: "live",
+  daily_needs: "amen",
+  green_space: "amen",
+  value_vs_comps: "val",
+  development_pressure: "dev",
+  running_costs: "rates",
+  rent_affordability: "afford",
+  buy_affordability: "afford",
+});
+
+function metricMultiplier(key, profile) {
+  const weight = isObj(profile.metricWeights) ? num(profile.metricWeights[SIGNAL_METRICS[key]]) : null;
+  return weight !== null && weight > 0 ? weight * METRIC_COUNT : 1;
 }
 
 function weightedMean(signals) {

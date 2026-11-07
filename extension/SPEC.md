@@ -25,7 +25,7 @@ Run the team proxy (`proxy/`, holds the key, calls api-ht.microburbs.com.au) on 
 1. **Prove the flow** in Chrome on live proxy data: install, quiz, listing, badge, panel.
 2. **Fix address reading** on real listings on both sites. Check houses, units, and pages that hide the address, such as "Address available on request". Those pages should fall back to the typed address box.
 3. **Handle navigation.** Moving between listings must never show the previous home's score. Search result pages should show the empty state.
-4. **Build the real quiz** as one question per screen, rendered from `GET /api/quiz`. Let users retake it from the panel.
+4. **Build the real quiz** as one question per screen, on the website. The panel logs in and loads the saved weights from Django.
 5. **Design the panel:** score first, matched address always visible, each pillar expands to its factors. Show `dealbreakers` and `data_gaps` clearly.
 6. **Point at production:** update `src/config.js` and add the host to `host_permissions`.
 

@@ -7,6 +7,7 @@ import { adapt } from "./adapter.js";
 import { scoreListing } from "./score.js";
 import { renderFit } from "./fit.js";
 import { loadProfile, openOnboarding, renderProfile } from "./profile.js";
+import { initAccount } from "./account.js";
 
 const STATES = new Set(["empty", "loading", "need_address", "matched", "ambiguous", "no_match", "out_of_area", "error"]);
 // background.js gives up on a fetch after 25 s; a "checking" record older than this has lost its worker.
@@ -365,4 +366,5 @@ try {
   // windows API not available here: the tab listeners still cover it.
 }
 
+initAccount();
 refresh();

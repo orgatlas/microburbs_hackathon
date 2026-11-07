@@ -156,6 +156,7 @@ function fromReadme(raw) {
   for (const flag of ["hasCar", "nightlife"]) {
     if (typeof raw[flag] === "boolean") (p[flag] = raw[flag]), found++;
   }
+  if (isObj(raw.metricWeights)) p.metricWeights = raw.metricWeights;
   // Keep our own flags so normalizeProfile(normalizeProfile(x)) is stable.
   if (raw.converted === true) {
     p.converted = true;
