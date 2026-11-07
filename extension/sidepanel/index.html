@@ -1,18 +1,116 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>MicroMatch</title>
-    <link rel="stylesheet" href="panel.css" />
-  </head>
-  <body>
-    <h1>MicroMatch</h1>
-    <main id="view"></main>
-    <form id="manual">
-      <label for="address">Wrong home? Type the address</label>
-      <input id="address" autocomplete="off" placeholder="26 Tudor Street, Surry Hills" />
-      <button>Check</button>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>MicroMatch</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <!--
+    MicroMatch side panel. panel.js drives this page; nothing here runs inline (MV3 CSP).
+    State:  #view[data-state] = empty | loading | need_address | matched | ambiguous | no_match | out_of_area | error
+            panel.css shows only the #view > [data-for] section that matches; the type-it form shows in every state except loading.
+    Hooks:  [data-bind]   text set by panel.js: status, query, message, error, address, listing, confidence, asof
+            [data-slot]   containers panel.js fills or hands to a component: ambiguous-list, candidates, speedo, verdict,
+                          notices, halos, sliders, profile, typeit (the form)
+            [data-action] open-onboarding, retry, not-this-one
+    Only the listing's address is read from the page. The Microburbs key never reaches the extension.
+  -->
+  <header class="mm-header">
+    <span class="mm-brand" role="heading" aria-level="1">MicroMatch</span>
+    <span class="mm-mock" title="Synthetic numbers from the backend mock, not Microburbs data" hidden>Mock data</span>
+    <button type="button" class="mm-gear" data-action="open-onboarding" aria-label="Edit your profile (opens the quiz)" title="Edit your profile (opens the quiz)">
+      <!-- Gear: Feather Icons "settings", MIT licence -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </header>
+
+  <!-- Screen-reader announcement of each state change. panel.js sets one short line here,
+       e.g. "Checking 26 Tudor Street…" or "Matched 26 Example Street, Surry Hills. Fit 82 of 100, Halo." -->
+  <p class="mm-sr-only" id="mm-status" data-bind="status" role="status" aria-live="polite" aria-atomic="true"></p>
+
+  <main id="view" data-state="empty">
+    <section class="mm-state" data-for="empty">
+      <h2>Open a listing</h2>
+      <p>Open a home on realestate.com.au or domain.com.au to see how well it fits you.</p>
+      <p>Covers the City of Sydney’s 29 suburbs, such as Surry Hills, Glebe, Pyrmont and Redfern.</p>
+    </section>
+
+    <section class="mm-state" data-for="loading">
+      <h2>Checking <span data-bind="query"></span>…</h2>
+      <div class="mm-skeleton" aria-hidden="true">
+        <span class="mm-skel mm-skel--gauge"></span>
+        <span class="mm-skel mm-skel--title"></span>
+        <span class="mm-skel"></span>
+        <span class="mm-skel mm-skel--short"></span>
+        <span class="mm-skel mm-skel--row"></span>
+        <span class="mm-skel mm-skel--row"></span>
+      </div>
+    </section>
+
+    <section class="mm-state" data-for="need_address">
+      <h2>No address on this page</h2>
+      <p>We couldn’t read an address on this listing. Type it below to check it.</p>
+    </section>
+
+    <section class="mm-state" data-for="ambiguous">
+      <h2 id="mm-ambiguous-title">Which home is this?</h2>
+      <p>That address covers more than one home. Pick yours, or type the full address below.</p>
+      <ul data-slot="ambiguous-list" aria-labelledby="mm-ambiguous-title"></ul>
+    </section>
+
+    <section class="mm-state" data-for="no_match">
+      <h2>We couldn’t find that address</h2>
+      <p>Check the street number and suburb, then type it below.</p>
+    </section>
+
+    <section class="mm-state" data-for="out_of_area">
+      <h2>City of Sydney only</h2>
+      <p data-bind="message"></p>
+      <p>Try a listing in one of its 29 suburbs, such as Surry Hills, Glebe, Pyrmont or Redfern.</p>
+    </section>
+
+    <section class="mm-state" data-for="error">
+      <h2>We couldn’t check this home</h2>
+      <p>The MicroMatch service didn’t return a result. Try again, or type the address below.</p>
+      <p data-bind="error"></p>
+      <button type="button" data-action="retry">Try again</button>
+    </section>
+
+    <section class="mm-result" data-for="matched">
+      <section class="mm-addr" aria-labelledby="mm-addr-label">
+        <p class="mm-label" id="mm-addr-label">Matched home</p>
+        <h2 data-bind="address"></h2>
+        <p class="mm-addr__facts" data-bind="facts"></p>
+        <p class="mm-addr__query" data-bind="listing"></p>
+        <p class="mm-addr__confidence" data-bind="confidence"></p>
+        <button type="button" class="mm-linkbtn" data-action="not-this-one" aria-expanded="false" aria-controls="mm-picker">Not this one?</button>
+        <div class="mm-picker" id="mm-picker" hidden>
+          <p id="mm-picker-title">Pick the right home</p>
+          <ul data-slot="candidates" aria-labelledby="mm-picker-title"></ul>
+          <p>Not listed? Type the address in the box below.</p>
+        </div>
+      </section>
+      <section class="mm-score" aria-label="Fit score"><div data-slot="speedo"></div><p class="mm-verdict" data-slot="verdict"></p></section>
+      <section data-slot="notices" aria-label="Things to check"></section>
+      <section data-slot="halos" aria-label="Halos and failos"></section>
+      <section data-slot="sliders" aria-label="Commute, safety, lifestyle and price"></section>
+      <section data-slot="profile" aria-label="Your profile"></section>
+    </section>
+
+    <form class="mm-typeit" data-slot="typeit" role="search" aria-label="Check an address">
+      <label for="mm-typeit-input">Type the address</label>
+      <div class="mm-typeit__row">
+        <input id="mm-typeit-input" name="address" type="text" autocomplete="off" spellcheck="false" placeholder="26 Tudor Street, Surry Hills NSW 2010">
+        <button type="submit">Check</button>
+      </div>
     </form>
-    <script type="module" src="panel.js"></script>
-  </body>
+  </main>
+
+  <footer class="mm-foot">Microburbs estimates, indicative only — not a valuation or financial advice<span class="mm-foot__asof" data-bind="asof"></span></footer>
+
+  <script type="module" src="panel.js"></script>
+</body>
 </html>
