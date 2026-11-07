@@ -4,244 +4,201 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Fit: personalised property fit, its scoring model, competitor comparison and City of Sydney address-matching method.">
-<title>Fit — does this home fit you? | Hackathon report</title>
+<title>MicroMatch · Same home, different fit | Hackathon report</title>
 <style>
-:root{color-scheme:light;--navy:#04244f;--blue:#1464bc;--ink:#263b4b;--muted:#526778;--line:#d8e4ee;--soft:#eef6fc}
-*{box-sizing:border-box}body{margin:0;color:var(--ink);background:#f8fbfe;font:16px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:#0759ac;text-underline-offset:.18em}a:focus-visible,[tabindex]:focus-visible{outline:3px solid #be6200;outline-offset:4px}.skip{position:absolute;left:1rem;top:-5rem;padding:.6rem 1rem;background:white;z-index:2}.skip:focus{top:1rem}
-header{padding:65px 24px 58px;text-align:center;color:white;background:linear-gradient(130deg,#04244f,#1875d8)}.eyebrow{display:inline-block;padding:6px 14px;border-radius:24px;background:#ffffff20;font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;font-weight:750}h1{margin:18px auto;max-width:20ch;font-size:clamp(2.3rem,5vw,3.6rem);line-height:1.12;letter-spacing:-.04em}header p{max-width:62ch;margin:12px auto 0}main{max-width:1120px;margin:auto;padding:30px 28px 64px}h2,h3{color:var(--navy);line-height:1.25}h2{font-size:clamp(1.45rem,3vw,1.95rem);letter-spacing:-.025em;margin:0 0 18px}h3{margin:24px 0 10px;font-size:1.15rem}p{margin:0 0 16px}section{margin-top:36px}.lead{font-size:1.2rem;max-width:77ch}.note,caption{color:var(--muted);font-size:.9rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;margin:24px 0}.card{background:white;border:1px solid var(--line);border-radius:15px;padding:25px}.card h3{margin-top:0}.card p:last-child{margin-bottom:0}.highlight{background:var(--soft);border:1px solid #c7dfee;border-radius:16px;padding:30px}.big{display:block;color:#0756a6;font-size:clamp(2rem,4vw,2.8rem);font-weight:800;line-height:1.15;margin-bottom:12px}nav{display:flex;flex-wrap:wrap;gap:8px 20px;padding:14px 0 20px;border-bottom:1px solid var(--line);font-size:.9rem}
-.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:white;margin:20px 0 12px}table{width:100%;border-collapse:collapse;text-align:left;font-size:.92rem}caption{text-align:left;padding:15px;background:#f1f6fb}th,td{padding:15px;vertical-align:top;border-bottom:1px solid var(--line)}thead th{color:var(--navy);background:#eaf3fb;font-size:.83rem}tbody th{color:var(--navy);font-weight:700;width:17%}tbody tr:last-child>*{border-bottom:0}.comparison{min-width:680px}.model{min-width:700px}.model tbody th{width:14%}.model td:nth-child(2){width:25%}.flow{display:flex;flex-wrap:wrap;gap:10px;padding:0;list-style:none;counter-reset:flow}.flow li{flex:1 1 170px;padding:16px;border-radius:10px;background:#eaf3fb;color:var(--navy);font-weight:650;counter-increment:flow}.flow li::before{content:counter(flow) ". ";color:var(--blue)}.weights{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:20px 0 12px}.weights span:nth-child(1){width:35%;background:#0756a6}.weights span:nth-child(2){width:25%;background:#247ca3}.weights span:nth-child(3){width:15%;background:#6b5d9e}.weights span:nth-child(4){width:25%;background:#ae5b21}.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0;padding:0;list-style:none;font-size:.92rem}.pending{border:2px dashed #af7623;background:#fff9ed}.badge{display:inline-block;margin-bottom:14px;padding:4px 10px;border-radius:5px;color:#704100;background:#ffedc6;font-size:.8rem;font-weight:800}.pending .grid{margin-bottom:0}li{margin-bottom:8px}code{font-size:.87em;overflow-wrap:anywhere}details{margin-top:20px;padding:16px 20px;border:1px solid var(--line);border-radius:10px;background:white}summary{cursor:pointer;color:var(--navy);font-weight:700}details p{margin:12px 0 0}footer{margin-top:38px;border-top:1px solid var(--line);padding-top:24px;font-size:.9rem;color:var(--muted)}
-@media(max-width:700px){header{padding:42px 18px}main{padding:24px 16px 44px}.grid{grid-template-columns:1fr}.card,.highlight{padding:21px}.table-wrap{border-radius:8px}}
-@media print{body{background:white;font-size:10pt}header{background:white;color:var(--navy);padding:20px 0}main{max-width:none;padding:0}nav,.skip{display:none}.table-wrap{overflow:visible}table.comparison,table.model{min-width:0;font-size:8pt}th,td{padding:8px}tr,.card{break-inside:avoid}h2,h3{break-after:avoid}a{color:inherit}}
+:root{
+  color-scheme:light dark;
+  --page:light-dark(#fbf5ea,#151d18);
+  --surface:light-dark(#fffdf8,#1e2922);
+  --ink:light-dark(#173427,#edf4ea);
+  --muted:light-dark(#4f5a50,#b5c3b7);
+  --line:light-dark(#e6d9c2,#394b3d);
+  --accent:light-dark(#1f5a41,#9dd4b2);
+  --soft:light-dark(#f7eedf,#29392c);
+  --banner:light-dark(#1f5a41,#163e2e);
+  --banner-text:#fffdf8;
+  --banner-accent:#f0c75e;
+  --pending-surface:light-dark(#f7eedf,#2d2a1e);
+  --pending-border:light-dark(#8a6410,#c69759);
+  --pending-badge:light-dark(#f6ebcb,#463722);
+  --pending-text:light-dark(#694b0d,#f6d7a3);
+  --weight-commute:light-dark(#1f5a41,#6fa587);
+  --weight-safety:light-dark(#40778a,#88b8c9);
+  --weight-lifestyle:light-dark(#6fa587,#a3c4a9);
+  --weight-price:#e3b23c;
+  --gold:#e3b23c;
+  --gold-ink:#173427;
+  --display:Georgia,serif;
+}
+*{box-sizing:border-box}body{margin:0;color:var(--ink);background:var(--page);font:16px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:var(--accent);text-underline-offset:.18em}a:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--accent);outline-offset:4px}.skip{position:absolute;left:1rem;top:-5rem;padding:.6rem 1rem;background:var(--surface);z-index:2}.skip:focus{top:1rem}
+header{padding:65px 24px 58px;text-align:center;color:var(--banner-text);background:var(--banner)}.eyebrow{display:inline-block;padding:6px 14px;border-radius:24px;background:#afe8cd22;color:var(--banner-accent);font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;font-weight:750}h1{margin:18px auto;max-width:20ch;font-size:clamp(2.3rem,5vw,3.6rem);line-height:1.12;letter-spacing:-.04em}header h1 em{color:var(--banner-accent)}header p{max-width:62ch;margin:12px auto 0}main{max-width:1120px;margin:auto;padding:30px 28px 64px}h2,h3{color:var(--ink);line-height:1.25}h2{font-size:clamp(1.45rem,3vw,1.95rem);letter-spacing:-.025em;margin:0 0 18px}h3{margin:24px 0 10px;font-size:1.15rem}p{margin:0 0 16px}section{margin-top:36px}.lead{font-size:1.2rem;max-width:77ch}.note,caption{color:var(--muted);font-size:.9rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;margin:24px 0}.card{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:25px}.card h3{margin-top:0}.card p:last-child{margin-bottom:0}.highlight{background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:30px}.big{display:block;color:var(--accent);font-size:clamp(2rem,4vw,2.8rem);font-weight:800;line-height:1.15;margin-bottom:12px}nav{display:flex;flex-wrap:wrap;gap:8px 20px;padding:14px 0 20px;border-bottom:1px solid var(--line);font-size:.9rem}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:20px 0 12px}table{width:100%;border-collapse:collapse;text-align:left;font-size:.92rem}caption{text-align:left;padding:15px;background:var(--soft)}th,td{padding:15px;vertical-align:top;border-bottom:1px solid var(--line)}thead th{color:var(--ink);background:var(--soft);font-size:.83rem}tbody th{color:var(--ink);font-weight:700;width:17%}tbody tr:last-child>*{border-bottom:0}.comparison{min-width:680px}.model{min-width:700px}.model tbody th{width:14%}.model td:nth-child(2){width:25%}.flow{display:flex;flex-wrap:wrap;gap:10px;padding:0;list-style:none;counter-reset:flow}.flow li{flex:1 1 170px;padding:16px;border-radius:10px;background:var(--soft);color:var(--ink);font-weight:650;counter-increment:flow}.flow li::before{content:counter(flow) ". ";color:var(--accent)}.weights{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:20px 0 12px}.weights span:nth-child(1){width:35%;background:var(--weight-commute)}.weights span:nth-child(2){width:25%;background:var(--weight-safety)}.weights span:nth-child(3){width:15%;background:var(--weight-lifestyle)}.weights span:nth-child(4){width:25%;background:var(--weight-price)}.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0;padding:0;list-style:none;font-size:.92rem}.pending{border:2px dashed var(--pending-border);background:var(--pending-surface)}.badge{display:inline-block;margin-bottom:14px;padding:4px 10px;border-radius:5px;color:var(--pending-text);background:var(--pending-badge);font-size:.8rem;font-weight:800}.pending .grid{margin-bottom:0}li{margin-bottom:8px}code{font-size:.87em;overflow-wrap:anywhere}details{margin-top:20px;padding:16px 20px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}summary{cursor:pointer;color:var(--ink);font-weight:700}details p{margin:12px 0 0}footer{margin-top:38px;border-top:1px solid var(--line);padding-top:24px;font-size:.9rem;color:var(--muted)}
+.hero{text-align:left;padding:30px 28px 44px}.hero-inner{max-width:1064px;margin:auto}.hero-top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.brand{font:700 1.35rem var(--display)}.hero h1{font:500 clamp(2.65rem,7vw,5.15rem)/.98 var(--display);letter-spacing:-.045em;margin:25px 0 15px;max-width:none}.hero p{margin:0;max-width:62ch}.hero-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:19px}.hero-actions a{display:inline-block;padding:8px 16px;border-radius:24px;color:var(--banner-text);font-size:.9rem;font-weight:700}.hero-actions .hero-primary{background:var(--gold);color:var(--gold-ink);text-decoration:none}.hero a:focus-visible{outline-color:var(--banner-accent)}.report-nav{padding-top:0}main section{scroll-margin-top:16px}.section-tag{margin:0 0 5px;color:var(--accent);font-size:.75rem;letter-spacing:.11em;text-transform:uppercase;font-weight:750}h2{font-family:var(--display);font-weight:600}.section-intro{max-width:75ch}.report-status{margin:20px 0 0;padding:10px 14px;background:var(--soft);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;font-size:.9rem}.demo-box{overflow:hidden;border:1px solid var(--line);border-radius:15px;background:var(--surface)}.demo-address{padding:11px 17px;background:var(--soft);display:flex;gap:8px 16px;justify-content:space-between;align-items:center;flex-wrap:wrap;font-size:.9rem}.demo-address span{color:var(--muted);font-size:.82rem}.demo-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:24px;padding:20px}.demo-controls{display:grid;grid-template-columns:1fr 1fr;gap:6px}.demo-controls button{font:inherit;font-size:.85rem;border:1px solid var(--line);color:var(--ink);background:var(--page);border-radius:8px;text-align:left;padding:8px 10px;cursor:pointer}.demo-controls button strong,.demo-controls button span{display:block}.demo-controls button span{font-size:.78rem;color:var(--muted)}.demo-controls button[aria-pressed=true]{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}.demo-controls button[aria-pressed=true] span{color:inherit}button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.demo-gauge{display:block;width:min(100%,170px);height:auto;margin:12px auto 0}.demo-needle{transform-origin:100px 100px;transform-box:view-box;transform:rotate(var(--angle,108deg))}.demo-score{text-align:center;margin:0;color:var(--muted)}.demo-score strong{color:var(--ink);font-size:2.2rem;line-height:1;font-variant-numeric:tabular-nums}.demo-explanation{margin:8px auto 0;font-size:.87rem;max-width:34ch;text-align:center}.demo-facts h3{margin:0 0 8px}.demo-facts details{margin:0;padding:0;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent}.demo-facts details:last-child{border-bottom:1px solid var(--line)}.demo-facts summary{padding:9px 0;display:grid;grid-template-columns:82px minmax(16px,1fr) auto;gap:8px;align-items:center;list-style:none;font-size:.88rem}.demo-facts summary::-webkit-details-marker{display:none}.demo-track{position:relative;height:5px;border-radius:8px;background:linear-gradient(90deg,#ce806b,var(--gold),#6fa587)}.demo-track::after{content:"";position:absolute;left:var(--position);top:-3px;width:4px;height:11px;border-radius:3px;background:var(--ink)}.demo-weight{font-weight:500;font-size:.8rem;color:var(--muted);white-space:nowrap}.demo-facts details p{margin:0 0 8px;padding:8px 10px;border-radius:7px;background:var(--soft);font-size:.85rem}.evidence-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}.evidence-grid .card{padding:17px}.evidence-grid .big{font-size:1.7rem;margin:5px 0 8px}.evidence-grid .note{margin:0}.audit-details>summary{font-size:.94rem}.audit-details section{margin-top:20px}.audit-details section+section{border-top:1px solid var(--line);padding-top:20px}.build-flow{margin:12px 0 8px}.build-flow li{background:var(--soft);border:1px solid var(--line)}.build-flow strong{display:block}.build-flow span{font-size:.87rem;font-weight:400;color:var(--muted)}.market-summary{padding-left:1.25em}.market-summary li{margin-bottom:6px}
+@media(prefers-reduced-motion:no-preference){.demo-needle{transition:transform .55s cubic-bezier(.2,.8,.2,1)}}
+.demo-facts summary{grid-template-columns:82px minmax(16px,1fr) auto 8px}.demo-facts summary::after{content:"";width:6px;height:6px;border-bottom:1.5px solid currentColor;border-right:1.5px solid currentColor;transform:rotate(45deg);margin-top:-3px}.demo-facts details[open] summary::after{transform:rotate(225deg);margin-top:3px}.judge-repro{font-size:.9rem;color:var(--muted)}
+@media(max-width:700px){header,.hero{padding:26px 18px 32px}main{padding:24px 16px 44px}.grid,.evidence-grid,.demo-body{grid-template-columns:1fr}.demo-body{gap:18px;padding:15px}.card,.highlight{padding:19px}.table-wrap{border-radius:8px}}
+@media print{:root{color-scheme:light}header :is(h1 em,.eyebrow){color:var(--accent)}body{background:var(--surface);font-size:10pt}header{background:var(--surface);color:var(--ink);padding:20px 0}main{max-width:none;padding:0}nav,.skip{display:none}.table-wrap{overflow:visible}table.comparison,table.model{min-width:0;font-size:8pt}th,td{padding:8px}tr,.card{break-inside:avoid}h2,h3{break-after:avoid}a{color:inherit}}
+.points { padding-left: 1.25em; }
+.points li { margin-bottom: 8px; }
 </style>
 </head>
 <body>
 <a class="skip" href="#report">Skip to report</a>
-<header>
-<span class="eyebrow">Team Microscope · Microburbs Hackathon · Task 3 · 7 November 2026</span>
-<h1>Fit — does this home fit <em>you?</em></h1>
-<p>A personal fit score beside the listing, with the facts that move it. City of Sydney trial · Chrome extension.</p>
+<header class="hero">
+<div class="hero-inner">
+<div class="hero-top"><span class="brand">MicroMatch</span><span class="eyebrow">Microburbs Hackathon · Task 3</span></div>
+<h1>Same home. <em>Different fit.</em></h1>
+<p>A Chrome side panel that shows how a Sydney home fits the person viewing it, using Microburbs facts and their saved quiz priorities.</p>
+<div class="hero-actions"><a class="hero-primary" href="#example">Try the same-home example</a><a href="#results">See the results</a></div>
+</div>
 </header>
 <main id="report">
-<nav aria-label="Report sections"><a href="#portals">The listing gap</a><a href="#extensions">Existing extensions</a><a href="#sarah">Sarah</a><a href="#scoring">Scoring</a><a href="#method">Data &amp; method</a><a href="#results">Results</a><a href="#held-out">Held-out check</a><a href="#credits">Credits</a></nav>
-<section aria-labelledby="overview-title">
-<h2 id="overview-title">The same home. Different priorities.</h2>
-<p class="lead">Fit is the README’s Chrome panel for people browsing realestate.com.au and Domain. It brings Microburbs facts into a 0–100 fit score, four dimensions and up to three positives (“halos”) and three negatives (“failos”), each with its number and source. A six-question quiz sets the weights behind the needle.</p>
-<div class="grid">
-<div class="card"><strong class="big">Your priorities</strong><p>Commute, Safety, Lifestyle and Price. The facts describe the home; the weights describe the person considering it.</p></div>
-<div class="card"><strong class="big">Reasons you can check</strong><p>A matched-address header and sourced facts make the score inspectable. Missing data is missing evidence, never a zero.</p></div>
+<nav class="report-nav" aria-label="Report sections"><a href="#example">Example</a><a href="#results">Results</a><a href="#method">How it works</a><a href="#setup">Setup</a><a href="#held-out">Separate check</a><a href="#market">Market comparison</a><a href="#limits">Limitations</a></nav>
+<section id="example" aria-labelledby="example-title">
+<p class="section-tag">What we built</p>
+<h2 id="example-title">One listing, two buyers</h2>
+<p class="section-intro">Switch buyers to see what changes. The home, purchase budget and pillar scores stay the same. Only the quiz weights move.</p>
+<div class="demo-box">
+<div class="demo-address"><strong>Example home · Surry Hills, NSW</strong><span>Fictional home and inputs</span></div>
+<div class="demo-body">
+<div>
+<div class="demo-controls" role="group" aria-label="Choose an illustrative buyer">
+<button type="button" data-buyer="price" aria-pressed="true"><strong>Price first</strong><span>60 / 100</span></button>
+<button type="button" data-buyer="lifestyle" aria-pressed="false"><strong>Lifestyle first</strong><span>75 / 100</span></button>
 </div>
-<p class="note">Scope: the product follows <a href="README.md">README.md</a>; the scoring section documents the current <a href="extension/sidepanel/score.js">side-panel code</a>. The teammate’s <a href="PLAN.md">competitor research plan</a> informs the comparison and matching checks; its earlier feature proposals are not claims about the shipped panel. Endpoint families in the README are candidate inputs; the Results section records which signals were live on a real listing. Results below were measured on 7 November 2026; only the held-out number is still to come.</p>
-</section>
-<section id="portals" aria-labelledby="portals-title">
-<h2 id="portals-title">What buyers already see — and what our panel adds</h2>
-<p>Both portals already support property research. The opportunity is to help a particular person weigh the facts while browsing, rather than claim those facts are all absent elsewhere.</p>
-<div class="table-wrap" tabindex="0" role="region" aria-label="Portal comparison; scroll horizontally on a small screen">
-<table class="comparison">
-<caption>Features vary by property and page. Property-profile features are distinguished from the listing itself; this is a source review, not a six-listing live audit.</caption>
-<thead><tr><th scope="col">Question</th><th scope="col">REA / realestate.com.au</th><th scope="col">Domain</th><th scope="col">Fit’s README scope</th></tr></thead>
-<tbody>
-<tr><th scope="row">What is the home?</th><td>Listing address, photos, description, property attributes and advertised price or agent contact.</td><td>Listing address, photos, description, property attributes and advertised price or agent contact.</td><td>Reads the address only, then shows the matched home. No listing screenshots, photos, description or asking price are collected.</td></tr>
-<tr><th scope="row">What is the price context?</th><td>Property profiles add value estimates and sale / lease history where available. <a href="https://help.realestate.com.au/hc/en-us/articles/9393344786969-How-Property-Profiles-work">REA source</a>.</td><td>Home Price Guide and property profiles provide estimates and property history. <a href="https://help.domain.com.au/hc/en-au/articles/360018043914-Home-Price-Guide-Property-Profile-overview-FAQ-s">Domain source</a>.</td><td>Scores Microburbs rent against the person’s income, or its automated valuation against their purchase budget. It does not uncover a listing’s hidden asking price.</td></tr>
-<tr><th scope="row">What is nearby?</th><td>Property profiles include neighbourhood context. <a href="https://help.realestate.com.au/hc/en-us/articles/9393344786969-How-Property-Profiles-work">REA source</a>.</td><td>School-zone search already helps buyers choose a location around a specific need. <a href="https://help.domain.com.au/hc/en-au/articles/360033742314-Search-for-properties-by-school-zone">Domain source</a>.</td><td>The README model combines available transport, work-distance, amenity, safety and price signals into four dimensions.</td></tr>
-<tr><th scope="row">Does it fit me?</th><td colspan="2">Buyers can research and filter homes, but still need to weigh competing priorities. These sources do not establish that either portal offers Fit’s particular quiz-to-four-weights explanation.</td><td>Personal weights change each dimension’s contribution. Halos and failos show the evidence pulling the score up or down.</td></tr>
-</tbody>
-</table>
+<svg class="demo-gauge" viewBox="0 0 200 112" aria-hidden="true"><defs><linearGradient id="demo-spectrum"><stop stop-color="#ce806b"/><stop offset="50%" stop-color="#e3b23c"/><stop offset="100%" stop-color="#6fa587"/></linearGradient></defs><path d="M14 100 A86 86 0 0 1 186 100" fill="none" stroke="url(#demo-spectrum)" stroke-width="10" stroke-linecap="round"/><g class="demo-needle"><path d="M32 100 L100 97 L105 100 L100 103 Z" fill="currentColor"/><circle cx="100" cy="100" r="5" fill="currentColor"/></g></svg>
+<p class="demo-score" aria-live="polite"><strong id="demo-score">60</strong> / 100</p>
+<p class="demo-explanation" id="demo-explanation">Price carries the most weight, so the weaker Price pillar pulls the score down.</p>
 </div>
-</section>
-<section id="extensions" aria-labelledby="extensions-title">
-<h2 id="extensions-title">Existing extensions — where the gap remains</h2>
-<p class="note">The plan’s competitor comparison was cross-checked against the linked publishers’ descriptions for this report on 7 November 2026. These are advertised capabilities, not installation-test results. “Not described” means the source does not advertise a capability, not proof that the product cannot do it.</p>
-<div class="table-wrap" tabindex="0" role="region" aria-label="Extension comparison; scroll horizontally on a small screen">
-<table class="comparison">
-<thead><tr><th scope="col">Extension</th><th scope="col">What it shows</th><th scope="col">What is not described</th><th scope="col">The gap Fit addresses</th></tr></thead>
-<tbody>
-<tr><th scope="row"><a href="https://www.homerapp.com.au/chrome-extension">Homer</a><br><span class="note">Formerly KoalaData</span></th><td>On REA and Domain: hidden guide prices, guide-price accuracy, campaign and price-change history, prior auction dates and agent pricing patterns. Account features include saved-property tracking.</td><td>A quiz-weighted score combining commute, safety, lifestyle and personal affordability.</td><td>Turn property facts into a personal trade-off, with explicit weights and reasons alongside the listing.</td></tr>
-<tr><th scope="row"><a href="https://chromewebstore.google.com/detail/property-seeker/olfjldooogfhhgklechmbdemheblklga">Property Seeker</a></th><td>Hidden price ranges on REA, Domain and Realcommercial; property.com.au estimates, Walk Score, listing hiding, and links to property tracking and Google Maps.</td><td>Income-based affordability combined with safety and commute in a user-weighted fit score.</td><td>Explain why the same home can suit two people differently, beyond its price range or walkability.</td></tr>
-<tr><th scope="row"><a href="https://chromewebstore.google.com/detail/pricedaddy/aaafhonbegjjedhpomjjjpodjaakdbfc">PriceDaddy!</a></th><td>On REA: price guides, price per square metre, days on market, page views, walkability and transit scores, plus NBN connection information and estimated speeds.</td><td>Quiz-derived personal weights, a combined safety / lifestyle / price / commute fit score, or Domain support.</td><td>Combine facts around the person’s priorities. Transport and walkability scores alone are not our novelty.</td></tr>
-<tr><th scope="row"><a href="https://chromewebstore.google.com/detail/property-buddy-by-handle/gnpcodhcjeffhnpgfhmiphgpfgpddped">Property Buddy</a><br><span class="note">By Handle Properties</span></th><td>Investment-oriented proprietary scoring using location, amenities and market conditions; market insights and side-by-side property comparison on REA and Domain.</td><td>A published quiz-to-personal-weights model for someone like Sarah, with Fit’s four dimensions and sourced halos / failos.</td><td>Make personal suitability and its calculation explicit. A property score already exists; our distinction is whose priorities it represents.</td></tr>
-</tbody>
-</table>
-</div>
-<p><strong>The gap we own in this prototype:</strong> an explainable, personally weighted view of the matched home using Microburbs facts. This is a distinction inferred from the descriptions above, not a claim to be the only personalisation tool in the market.</p>
-</section>
-<section id="sarah" class="highlight" aria-labelledby="sarah-title">
-<h2 id="sarah-title">Sarah is not the median buyer</h2>
-<p>Sarah is 19, works casual retail for about $600 a week, and her parents are moving her out. She needs somewhere she can afford that gets her to work. Her test profile is rent mode, a $250 weekly budget and a workplace at Broadway, Ultimo NSW. She is a test fixture, not a default: the running product scores only the signed-in person’s own quiz.</p>
-<div class="weights" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-<ul class="legend" aria-label="Sarah’s test weights"><li><strong>35%</strong> Commute</li><li><strong>25%</strong> Safety</li><li><strong>15%</strong> Lifestyle</li><li><strong>25%</strong> Price</li></ul>
-<h3>The clever step is quiz → weights</h3>
-<p>The six-question onboarding quiz turns answers into a stored profile and weights that sum to one. A work-focused person can put more emphasis on transport; someone who values nights out can give nightlife more influence. Sarah’s test weights put the largest share on commute. It is a starting point, not a claim that all 19-year-olds share her priorities.</p>
-<p>Personalisation changes the importance of the facts, not the facts themselves. It can also change a calculation: rental affordability uses the person’s income, and purchase affordability uses their budget. Parking and nightlife can respond to profile flags.</p>
-<p><strong>A useful tension:</strong> $250 is about 41.7% of Sarah’s $600 income. Her stated budget therefore falls into the README’s lowest rental-affordability band. “Within my budget” and “a low share of my income” are different questions. This is arithmetic from the persona, not a measured property result.</p>
-</section>
-<section id="scoring" aria-labelledby="scoring-title">
-<h2 id="scoring-title">How the scoring model works</h2>
-<p>Fit is a weighted summary of available facts, not a valuation or a validated prediction. The panel recalculates its own score; backend scores do not enter the arithmetic.</p>
-<ol class="flow" aria-label="Scoring method"><li>Read supplied facts</li><li>Apply threshold bands</li><li>Average each dimension</li><li>Apply personal weights</li></ol>
-<p>Each dimension is the rounded average of its scored signals. Each signal counts once, except parking and nightlife: their profile flag gives full weight when true, half when absent, and zero when false. Missing or unreadable signals are excluded.</p>
-<p>Fit is the rounded sum of dimension score × profile weight, divided by the sum of weights for scored dimensions. Empty dimensions are excluded and the remaining weights expand proportionally. No positively weighted evidence means “Not scored”, not zero. For example, only Commute 100 and Price 0 with Sarah’s weights gives round(35 ÷ 60 × 100) = 58.</p>
-<p>Sarah’s test weights are Commute 35%, Safety 25%, Lifestyle 15%, Price 25%. Valid weights are scaled to total 100%; unusable weights in an otherwise recognised profile become 25% each. With no saved profile there is no score: the panel shows the matched address and a “Take the quiz to see your fit” button.</p>
-<p>The three-pillar quiz conversion fixes Commute at 25% and shares the remaining 75% between Safety, Lifestyle and Price in the quiz’s proportions; it selects buy mode and maps the purchase budget. Car selection controls parking; buzzing / quiet controls nightlife. The four displayed tracks are read-only meters. Editing the saved profile through onboarding triggers recalculation.</p>
-<p>Bands below include their written endpoints. Only transport, work and CBD distances taper: after the 50-point plateau, score falls in a straight line to zero at 1,200 m, 10 km and 8 km respectively, rounded to the nearest integer. All other rows use steps.</p>
-<div class="table-wrap" tabindex="0" role="region" aria-label="Implemented scoring thresholds; scroll horizontally on a small screen">
-<table class="model">
-<caption>Current side-panel code: all signal bands, including reserved social-housing bands. Source codes are explained below.</caption>
-<thead><tr><th scope="col">Dimension</th><th scope="col">Signal</th><th scope="col">100</th><th scope="col">50</th><th scope="col">0</th><th scope="col">Source</th></tr></thead><tbody>
-<tr data-signal="transit_walk"><td>Commute</td><th scope="row">Nearest transport</th><td>&lt;400 m</td><td>400–900 m</td><td>≥1,200 m</td><td>T</td></tr>
-<tr data-signal="work_distance"><td>Commute</td><th scope="row">Work distance</th><td>&lt;2 km</td><td>2–6 km</td><td>≥10 km</td><td>B</td></tr>
-<tr data-signal="cbd_distance"><td>Commute</td><th scope="row">CBD distance</th><td>&lt;2 km</td><td>2–5 km</td><td>≥8 km</td><td>B</td></tr>
-<tr data-signal="parking"><td>Commute</td><th scope="row">Parking</th><td>≥1 space</td><td>—</td><td>0 spaces</td><td>P</td></tr>
-<tr data-signal="road_noise"><td>Commute</td><th scope="row">Busy road</th><td>None / &gt;200 m</td><td>Nearby / &gt;25–200 m</td><td>Fronting / ≤25 m</td><td>B</td></tr>
-<tr data-signal="crime_vs_benchmark"><td>Safety</td><th scope="row">Crime vs supplied benchmark</th><td>≤−20%</td><td>&gt;−20% and &lt;+20%</td><td>≥+20%</td><td>C</td></tr>
-<tr data-signal="livability_vs_benchmark"><td>Safety</td><th scope="row">Livability</th><td>Above</td><td>At</td><td>Below</td><td>B</td></tr>
-<tr data-signal="hazards_on_property"><td>Safety</td><th scope="row">Hazards</th><td>None</td><td>Nearby only</td><td>On property</td><td>H</td></tr>
-<tr data-signal="social_housing"><td>Safety</td><th scope="row">Social-housing estimate (unconnected)</th><td>Low</td><td>Mid</td><td>High</td><td>None</td></tr>
-<tr data-signal="daily_needs"><td>Lifestyle</td><th scope="row">Supermarket, gym, café within 800 m</th><td>3 categories</td><td>2</td><td>0–1</td><td>A</td></tr>
-<tr data-signal="nightlife"><td>Lifestyle</td><th scope="row">Nightlife venue count</th><td>≥3</td><td>1–2</td><td>0</td><td>B</td></tr>
-<tr data-signal="green_space"><td>Lifestyle</td><th scope="row">Nearest green-space distance</th><td>&lt;500 m</td><td>500–1,000 m</td><td>&gt;1,000 m</td><td>B</td></tr>
-<tr data-signal="rent_weekly"><td>Price</td><th scope="row">Rent ÷ weekly income (rent mode)</th><td>≤30%</td><td>&gt;30–40%</td><td>&gt;40%</td><td>R</td></tr>
-<tr data-signal="avm"><td>Price</td><th scope="row">AVM ÷ purchase budget (buy mode)</th><td>≤100%</td><td>&gt;100–110%</td><td>&gt;110%</td><td>V</td></tr>
-<tr data-signal="value_vs_comps"><td>Price</td><th scope="row">Value vs comparable sales</th><td>≤0% above</td><td>&gt;0–5% above</td><td>&gt;5% above</td><td>B</td></tr>
-<tr data-signal="running_costs"><td>Price</td><th scope="row">Running costs vs benchmark</th><td>Below</td><td>At</td><td>Above</td><td>B</td></tr>
-<tr data-signal="development_pressure"><td>Price</td><th scope="row">Development activity</th><td>Low / 0 DAs</td><td>Some / 1–4 DAs</td><td>Heavy / ≥5 DAs</td><td>B</td></tr>
-<tr data-signal="negotiating_room"><td>Price</td><th scope="row">Negotiating room</th><td>High: vacancy ≥3% or ≥60 days</td><td>Mid: vacancy 1.5–&lt;3% or 30–59 days</td><td>Tight: vacancy &lt;1.5% or &lt;30 days</td><td>B</td></tr>
-</tbody></table></div>
-<h3>Source endpoints</h3>
-<p class="note">The panel makes no Microburbs calls itself. Sources come from each returned factor’s source field (or “backend” if omitted). B means that supplied endpoint, with no fixed route assigned in the side-panel code. P is the parking fallback; T/A/C/H/V are endpoint examples in the adapter test fixture, and R is its rent test input—not proof of live coverage. Property paths use /v1/properties/{gnaf_id}/; suburb paths use /v1/suburbs/{suburb_name}/.</p>
-<ul>
-<li><strong>P:</strong> Property basics/all; property.parking_count takes precedence.</li>
-<li><strong>T:</strong> Property transport/nearby.</li>
-<li><strong>A:</strong> Property amenities/nearby.</li>
-<li><strong>C:</strong> Suburb crime/summary; the benchmark can be national, not necessarily the suburb.</li>
-<li><strong>H:</strong> Property risks/all.</li>
-<li><strong>R:</strong> Property rent-history-latest (latest advertised rent); otherwise suburb market/rent-map (mesh-block median for the property type); otherwise suburb market/median-rent (suburb median for the type). The panel names the source used.</li>
-<li><strong>V:</strong> Property valuation/avm.</li>
-<li><strong>None:</strong> Social housing is explicitly rejected by the adapter and never enters the panel score; low/mid/high are reserved scorer bands.</li>
-</ul>
-<h3>The reasons beneath the needle</h3>
-<p>A signal’s share is its dimension’s effective weight × its share of that dimension’s signal weights. Halos (score ≥70) rank by score × share; failos (score ≤30) by (100 − score) × share. Keep at most three of each with positive contribution. Ties prefer the higher halo score or lower failo score, then signal order. Overall bands are Failo 0–30, Meh 31–69, Halo 70–100. Missing source dates are labelled missing; a fetch date is not the data’s as-of date.</p>
-<details><summary>How incoming facts are interpreted</summary>
-<p>The adapter uses 80 m per walking minute. Daily needs count categories within 800 m, not venues; unreported categories remain unknown, and the signal is scored only if those unknowns cannot change its band. Nightlife accepts a count, or one nearest venue within 800 m / ten minutes as one; multiple explicit counts are added.</p>
-<p>Road-distance bands and DA-count bands apply when parsing distance or count text. Structured development numbers are already levels 0/1/2, not DA counts. Vacancy-percentage text and days-on-market text use the table’s bands; other structured negotiating numbers are levels. Livability and running-cost percentage comparisons treat ±5% as “at”; direct coded levels use their sign.</p>
-<p>Nearest distance wins when several factors map to one distance signal; worst road/hazard level wins. Otherwise the first readable factor is used, except daily-needs aggregation and nightlife counts. Hazard flags, coded levels and explicit wording can establish “on property”; proximity alone cannot.</p>
-<p>Rent must be positive and weekly income positive; buy mode needs positive AVM and budget. Weekly rent is converted from monthly, quarterly or yearly amounts when labelled. The other mode’s price fact is excluded. budgetWeekly does not affect rental affordability. The adapter can use the midpoint of a textual AVM range.</p>
-<p>The panel consumes supplied work/CBD distances and the supplied comparable-sales percentage: it does not geocode work, calculate haversine distance, select three comparables or independently check data freshness. Counts are rounded and clamped non-negative; level codes are rounded/clamped to 0–2, except signed livability/cost levels.</p>
-</details>
-<p class="note">Implementation reference: <a href="docs/SCORING.md">SCORING.md</a>, <a href="extension/sidepanel/score.js">score.js</a>, <a href="extension/sidepanel/adapter.js">adapter.js</a> and <a href="extension/sidepanel/profile.js">profile.js</a>. These rules describe the calculation, not measured matching accuracy or complete data coverage.</p>
-</section>
-<section id="method" aria-labelledby="method-title">
-<h2 id="method-title">What data supports the panel?</h2>
-<div class="grid">
-<div class="card"><h3>Microburbs facts, keyed to a home</h3>
-<p>The README names the API at <code>https://api-ht.microburbs.com.au</code>. Address lookup uses <code>GET /v1/geocode/address</code>. Property facts use a <code>gnaf_id</code>; suburb facts use the API’s suburb name.</p>
-<p>Named inputs include <code>/v1/properties/{id}/amenities/nearest-transport</code>, <code>/v1/properties/{id}/basics/all</code>, <code>/v1/properties/{id}/rent-history-latest</code> and <code>/v1/properties/{id}/valuation/avm</code>. The README also identifies comparable sales, crime benchmarks, risk overlays, nearby places, running costs, development activity and vacancy as starting-point endpoint families.</p>
-<p class="note">Exact available routes and fields must be checked in the <a href="https://api-ht.microburbs.com.au/docs">Microburbs API specification</a>. Naming an endpoint does not claim a successful live response or complete coverage.</p>
-</div>
-<div class="card"><h3>Only the address comes from the listing</h3>
-<p>The README’s extraction order is structured address data (JSON-LD), then the page heading, then a user-typed address. No screenshots, transcription, listing description, photos or asking price are used.</p>
-<p>The extension calls a local proxy. The API key stays in its gitignored environment file, never in the browser. The README specifies caching by address ID and suburb, and backing off when the API returns HTTP 429.</p>
-<p>The README proposes a building-level social-housing estimate from the supplied flags file; the current adapter has no source wired for it, so it is excluded from scoring. Supplied CSVs and raw API output stay out of the public repo.</p>
+<div class="demo-facts">
+<h3>Open a pillar to see the reason</h3>
+<details name="demo-facts" data-score="55"><summary><b>Commute</b><span class="demo-track" style="--position:55%" aria-hidden="true"></span><span class="demo-weight">25% weight</span></summary><p><strong>55 / 100.</strong> The location’s transport and work access matter for the daily trip. The real panel distinguishes straight-line estimates from a routed journey.</p></details>
+<details name="demo-facts" data-score="75"><summary><b>Safety</b><span class="demo-track" style="--position:75%" aria-hidden="true"></span><span class="demo-weight">15% weight</span></summary><p><strong>75 / 100.</strong> Local modelled crime and mapped hazards help buyers decide what to investigate before an inspection.</p></details>
+<details name="demo-facts" data-score="95"><summary><b>Lifestyle</b><span class="demo-track" style="--position:95%" aria-hidden="true"></span><span class="demo-weight">15% weight</span></summary><p><strong>95 / 100.</strong> Everyday shops, cafés and green space are the strongest part of this example home’s fit.</p></details>
+<details name="demo-facts" data-score="45" open><summary><b>Price</b><span class="demo-track" style="--position:45%" aria-hidden="true"></span><span class="demo-weight">45% weight</span></summary><p><strong>45 / 100.</strong> Price is the weakest pillar in this example. A buyer who prioritises price feels that trade-off more.</p></details>
 </div>
 </div>
-<h3>How we associate facts with the right address</h3>
-<ol>
-<li><strong>Extract or ask for the address.</strong> Keep unit and street-number information needed to distinguish homes in the same building.</li>
-<li><strong>Geocode and filter coverage.</strong> The geocoder can return up to ten candidates nationwide. Keep only candidates within the City of Sydney’s 29 trial suburbs before trusting the top hit.</li>
-<li><strong>Expose uncertainty.</strong> The README contract labels confidence as <code>exact</code>, <code>building</code> or <code>guess</code>, and includes candidates. The panel shows the matched address with a “Not this one?” picker and a typed-address correction path.</li>
-<li><strong>Fetch by identity.</strong> Use the selected <code>gnaf_id</code> for property facts. A building-only match is not an exact-unit match; block or suburb data must retain that geographic meaning.</li>
-<li><strong>Keep evidence attached.</strong> The README signal shape includes value, unit, label, endpoint source, as-of date and availability. Check the fact against the matched home, not just the original query text.</li>
-</ol>
-<p>“105/8”, “Unit 105, 8”, “Level 3” and “8–10” are named matcher requirements in the README. The plan additionally proposes an index of the supplied address list before geocoding; that proposal is not treated here as a verified implementation. Success on difficult formats belongs in the held-out check.</p>
-<div class="grid">
-<div class="card"><h3>City of Sydney only</h3><p>The trial covers the local government area’s 29 suburbs, not metropolitan Sydney or all of NSW. The README specifies a calm outside-coverage state for an upstream HTTP 403. A nationwide geocoder result does not imply property-data coverage.</p></div>
-<div class="card"><h3>Missing, estimated and approximate</h3><p>HTTP 200 can still mean <code>data: null</code> and <code>available: false</code>. That is “no figure”. Distance to work uses haversine (straight-line) distance, not a routed journey time. The CBD reference is Town Hall at −33.8731, 151.2069. Nearby hazards are distinct from overlays marked <code>on_property</code>.</p></div>
 </div>
-<p>Commute times shown in the panel are labelled “est.” and estimated from straight-line distance at typical mode speeds (walk 5, cycle 15, train/light rail 25, drive 20 km/h). The production version will replace them with real journey times from the Transport for NSW Open Data Trip Planner API, which Microburbs does not provide.</p>
+<p class="note">The example above uses fictional inputs to show how the calculation works. The recorded scores are below.</p>
 </section>
 <section id="results" class="highlight" aria-labelledby="results-title">
-<span class="badge">Measured 7 November 2026 (Sydney): live proxy and local stack</span>
-<h2 id="results-title">What worked / what didn’t</h2>
-<p><strong>Observed today, not expected.</strong> Live results come from the team proxy calling the Microburbs API with the real key. Test-suite results are fixture tests of the code, labelled as such, not live evidence.</p>
-<div class="table-wrap" tabindex="0" role="region" aria-label="Test results; scroll horizontally on a small screen">
-<table>
-<caption>Test suites run at 14:25 on 7 November 2026. They check the code against fixtures, not live data.</caption>
-<thead><tr><th scope="col">Suite</th><th scope="col">Command</th><th scope="col">Result</th></tr></thead>
-<tbody>
-<tr><th scope="row">Extension side panel</th><td><code>node --test extension/sidepanel/score.test.js extension/sidepanel/fit.test.js</code></td><td>125 tests pass, 0 fail</td></tr>
-<tr><th scope="row">Address extraction</th><td><code>node extension/address.test.js</code></td><td>12 assertions pass</td></tr>
-<tr><th scope="row">Proxy</th><td><code>cd proxy &amp;&amp; npm test</code></td><td>14 of 14 tests pass (4 address parser, 10 Contract 2)</td></tr>
-<tr><th scope="row">Accounts backend (Django)</th><td><code>cd backend &amp;&amp; python manage.py test</code></td><td>11 of 11 tests pass</td></tr>
-</tbody></table></div>
-<h3>Live signals on the Zetland listing</h3>
-<p>Listing: 401/2 Victoria Park Parade, Zetland. The proxy matched it to <strong>Unit 401, 2 Victoria Park Parade, Zetland</strong> with confidence <code>exact</code>: a unit-level match with no alternative candidates. <strong>14 of 18 signals were available</strong> in the live answer, measured with the test persona’s work address.</p>
-<div class="table-wrap" tabindex="0" role="region" aria-label="Zetland signal availability; scroll horizontally on a small screen">
-<table>
-<caption>Count of signals with <code>available: true</code> in one live proxy answer, 7 November 2026. Counts only; raw API values are not reproduced.</caption>
-<thead><tr><th scope="col">Dimension</th><th scope="col">Available</th><th scope="col">Unavailable</th></tr></thead>
-<tbody>
-<tr><th scope="row">Commute</th><td>5 of 5: nearest transport, work distance, CBD distance, parking, busy road</td><td>None</td></tr>
-<tr><th scope="row">Safety</th><td>2 of 4: mesh-block crime, livability</td><td>Hazards (<code>risks/all</code>); social-housing estimate (not connected)</td></tr>
-<tr><th scope="row">Lifestyle</th><td>3 of 3: daily amenities, nightlife, green space</td><td>None</td></tr>
-<tr><th scope="row">Price</th><td>4 of 6: rent affordability, running costs, development activity, negotiating room</td><td>Buy affordability (<code>valuation/avm</code>); comparable value (<code>comparables/recent-sales-nearby</code>)</td></tr>
-<tr><th scope="row">Total</th><td><strong>14 of 18</strong></td><td>4</td></tr>
-</tbody></table></div>
-<h3>The quiz moves the number</h3>
-<p>Proved in headed Chromium with the unpacked extension and no direct storage writes. We signed up on the website (:3001) and took the quiz. The dashboard passed the saved profile through the extension’s site bridge to <code>chrome.storage.local.profile</code>, and the side panel scored the Zetland listing with that quiz’s own weights. We then signed out, retook the quiz with different answers and reopened the same listing. Both panels were screenshotted.</p>
-<div class="grid">
-<div class="card"><strong class="big">38</strong><p>Fit score on the Zetland listing after the first quiz.</p></div>
-<div class="card"><strong class="big">60</strong><p>Fit score on the same listing after the quiz was retaken with different answers. Only the quiz answers changed.</p></div>
-</div>
-<p>With no saved profile, the panel shows the matched address and a “Take the quiz to see your fit” button, with no speedo and no numbers. The running product has no default persona.</p>
-<h3>Where the rent comes from</h3>
-<ol class="flow" aria-label="Rent source chain"><li>Latest advertised rent: <code>/v1/properties/{gnaf_id}/rent-history-latest</code></li><li>Otherwise the mesh-block median for the property type: <code>/v1/suburbs/{suburb}/market/rent-map</code></li><li>Otherwise the suburb median for the type: <code>/v1/suburbs/{suburb}/market/median-rent</code></li></ol>
-<p>The proxy takes the first source that answers. The panel names the source it used under the rent line. On the Zetland listing the first source answered: the latest advertised rent, labelled “weekly basis assumed”. The advert is dated February 2025, so it is a reference point, not today’s asking rent.</p>
-<h3>What didn’t work</h3>
-<ul>
-<li><strong>No stop names.</strong> The proxy passes only the mode and straight-line distance from <code>transport/nearby</code>, so the panel says “Nearest bus stop” without naming the stop.</li>
-<li><strong>No per-bedroom rent.</strong> The fallback medians are by property type, not by bedroom count, and the API has no per-property rental valuation. Without an advert, a one-bedroom and a three-bedroom unit in the same area get the same rent reference.</li>
-<li><strong>Address geocode misses.</strong> Work addresses without a street number, such as “Broadway, Ultimo”, and short forms such as “1 Martin Place” sometimes failed to resolve. The work-distance signal is then unavailable, not guessed.</li>
-<li><strong>Live listing sites block automated browsers.</strong> The automated proofs therefore used archived listing markup. The Internet Archive index was briefly down while we collected pages.</li>
-<li><strong>Four signals missing on Zetland.</strong> Hazards, the social-housing estimate, buy affordability and comparable value were unavailable in the live answer. The panel leaves them out and does not score them as zero.</li>
-</ul>
+  <p class="section-tag">What the team recorded</p>
+  <h2 id="results-title">One exact address match, two different scores</h2>
+  <div class="grid evidence-grid">
+    <div class="card"><h3>Sarah’s fit</h3><strong class="big">42 / 100</strong><p>Her rental profile weighed the cost against her weekly income.</p></div>
+    <div class="card"><h3>Alex’s fit</h3><strong class="big">65 / 100</strong><p>His buying profile gave the same home a different score.</p></div>
+    <div class="card"><h3>Address read from the listing</h3><strong class="big">Exact match</strong><p>The panel matched 59 Portman Street, Zetland.</p></div>
+  </div>
+  <p class="note">The demo replayed an archived listing page and fetched property facts through the live Microburbs API.</p>
+  <details class="audit-details"><summary>Other recorded checks</summary>
+    <ul class="points">
+      <li><strong>14 of 18 signals returned</strong> for a separate exact match at Unit 401, 2 Victoria Park Parade, Zetland. The proxy returned five Commute, two Safety, three Lifestyle and four Price signals.</li>
+      <li><strong>38 and 60 out of 100</strong> were the scores for two saved quiz profiles on that unit in the earlier browser check.</li>
+      <li><strong>126 Node tests passed</strong> across address extraction, scoring and panel evidence. These code tests used controlled inputs.</li>
+      <li><strong>Six of six archived addresses extracted</strong> in an earlier replay across REA and Domain. That run used a mock proxy.</li>
+    </ul>
+  </details>
+  <p class="note">Evidence and demo reviewed against repository revision <code>cda2610</code>.</p>
+</section>
+<section id="method" aria-labelledby="method-title">
+  <p class="section-tag">Data and method</p>
+  <h2 id="method-title">How MicroMatch works</h2>
+  <ol class="flow build-flow" aria-label="How MicroMatch works">
+    <li><strong>Read the address</strong><span>From REA or Domain, or entered by the user.</span></li>
+    <li><strong>Match the home</strong><span>Check unit, street number, street and suburb within the City of Sydney.</span></li>
+    <li><strong>Get the facts</strong><span>The proxy requests live Microburbs data. The API key stays on the server.</span></li>
+    <li><strong>Apply the quiz</strong><span>The saved profile sets the weights. The panel shows the score and reasons.</span></li>
+  </ol>
+  <h3>What the four pillars tell you</h3>
+  <ul class="points">
+    <li><strong>Commute.</strong> Nearby transport, work distance and parking help you judge everyday travel.</li>
+    <li><strong>Safety.</strong> Local modelled crime and mapped hazards help you decide what to check before an inspection.</li>
+    <li><strong>Lifestyle.</strong> Nearby shops, cafés, gyms and green space show what daily life could look like.</li>
+    <li><strong>Price.</strong> Compare rent with weekly income or estimated value with a purchase budget.</li>
+  </ul>
+  <details class="audit-details"><summary>Scoring, sources and missing data</summary>
+    <ul class="points">
+      <li>MicroMatch reads only the listing address. The matcher checks the local address index when available and can query the Microburbs geocoder.</li>
+      <li>The panel prompts for confirmation when the match is uncertain. A saved quiz profile and exact match are required to show the fit score.</li>
+      <li>The scorer averages the available signals within each pillar and combines the pillars using quiz weights. It skips missing signals and scales the remaining weights.</li>
+      <li>Pros and cons show their source and date when available. Rent uses a usable recorded advert, then a block or suburb median for the property type.</li>
+    </ul>
+  </details>
+</section>
+<section id="setup" class="highlight" aria-labelledby="setup-title">
+  <p class="section-tag">Run the extension</p>
+  <h2 id="setup-title">Try it locally</h2>
+  <ol class="points">
+    <li>Use the repository checkout with Chrome or Chromium, Node.js, npm and Python 3.</li>
+    <li>Copy <code>proxy/.env.example</code> to <code>proxy/.env</code> and set your team’s <code>MICROBURBS_API_KEY</code>.</li>
+    <li>Run <code>./run.sh</code> from the repository root in Bash on macOS or Linux, or in WSL on Windows.</li>
+    <li>Open <code>chrome://extensions</code>, enable <strong>Developer mode</strong>, and select <strong>Load unpacked</strong>. Choose the <code>extension</code> folder.</li>
+    <li>Once the servers are running, open <a href="http://localhost:3001">the local MicroMatch website</a>, sign up and complete the quiz. Then open a City of Sydney listing and click the MicroMatch toolbar icon.</li>
+  </ol>
 </section>
 <section id="held-out" class="highlight pending" aria-labelledby="held-out-title">
-<span class="badge">PLACEHOLDER: the held-out number is entered at 14:50, 7 November 2026 (Sydney)</span>
-<h2 id="held-out-title">Held-out address-match check</h2>
-<p><strong>Held-out result: HELD_OUT</strong></p>
-<p><strong>No other held-out figure is claimed.</strong> Use listings that were not used to build or tune the matcher. The README’s three rental and three sale end-to-end cases are not automatically held-out evidence.</p>
-<ol>
-<li>Freeze the tested build. The plan proposes setting aside ten addresses from a larger 30–40-listing collection before tuning. If that was not done, choose fresh listings after freezing and disclose the selection method. Include both portals and difficult unit / street-number formats.</li>
-<li>Independently check the returned address and address ID against the intended home. Count exact-home, building-only, no-match / asked-user and wrong-match outcomes separately; record ambiguity within the asked-user category.</li>
-<li>Report automatic exact matches divided by all eligible held-out addresses, as a count and percentage. Report user-corrected matches separately. Do not remove failures from the denominator.</li>
-<li>The plan proposes spot-checking five panels against the same address IDs in the API. Record the actual number checked, values, units, sources and dates, and distinguish property, block and suburb facts. Keep out-of-area rejection checks separate from in-area accuracy.</li>
-</ol>
-<div class="table-wrap">
-<table>
-<caption>These fields are filled with observed results at 14:50.</caption>
-<thead><tr><th scope="col">Measure</th><th scope="col">Result</th></tr></thead>
-<tbody>
-<tr><th scope="row">Build, sample and checking method</th><td>Pending — not entered</td></tr>
-<tr><th scope="row">Exact automatic matches / all eligible addresses</th><td>Pending — count and percentage</td></tr>
-<tr><th scope="row">Building-only matches</th><td>Pending — count</td></tr>
-<tr><th scope="row">No match / asked user (including ambiguity)</th><td>Pending — count</td></tr>
-<tr><th scope="row">Wrong matches</th><td>Pending — count</td></tr>
-<tr><th scope="row">Correct after user selection or correction</th><td>Pending — separate assisted result</td></tr>
-<tr><th scope="row">Fact-to-address and source checks</th><td>Pending — checked count, discrepancies and limitations</td></tr>
-</tbody>
-</table>
-</div>
+  <span class="badge">Results pending</span>
+  <h2 id="held-out-title">Separate check on fresh listings</h2>
+  <ul class="points">
+    <li>Use previously unused REA and Domain listings, including unit addresses.</li>
+    <li>Record exact, building-only, ambiguous, unmatched and wrong matches. Count assisted corrections separately.</li>
+    <li>Check whether the displayed facts belong to the matched unit, block or suburb. Compare their values, units, sources and dates.</li>
+  </ul>
+</section>
+<section id="market" aria-labelledby="market-title">
+  <p class="section-tag">Market comparison</p>
+  <h2 id="market-title">What buyers already see</h2>
+  <ul class="points">
+    <li><strong>REA and Domain</strong> show listing details and offer property profiles with history and estimates where available. <a href="https://help.realestate.com.au/hc/en-us/articles/9393344786969-How-Property-Profiles-work">REA profiles</a> · <a href="https://help.domain.com.au/hc/en-au/articles/360018043914-Home-Price-Guide-Property-Profile-overview-FAQ-s">Domain price guide</a></li>
+    <li><strong>Homer and Property Seeker</strong> add pricing context such as guides, price history or estimates. <a href="https://www.homerapp.com.au/chrome-extension">Homer</a> · <a href="https://chromewebstore.google.com/detail/property-seeker/olfjldooogfhhgklechmbdemheblklga">Property Seeker</a></li>
+    <li><strong>MicroMatch</strong> shows how the facts affect someone’s own fit score and lets them open each pillar to see why.</li>
+  </ul>
+</section>
+<section id="limits" aria-labelledby="limits-title">
+  <p class="section-tag">What remains uncertain</p>
+  <h2 id="limits-title">Limits of the recorded checks</h2>
+  <ul class="points">
+    <li>The automated browser runs used archived pages after the portals blocked automated requests. The latest demo used live Microburbs lookups for the property facts.</li>
+    <li>Travel distances are straight-line estimates. Incomplete workplace addresses sometimes failed to resolve.</li>
+    <li>On the Victoria Park Parade unit, hazards, social-housing estimate, buy affordability and comparable value were unavailable.</li>
+    <li>Area rent medians group homes by property type. They can include homes with different bedroom counts.</li>
+  </ul>
 </section>
 <footer id="credits">
-<h2>Credits and sources</h2>
-<ul>
-<li><strong>Microburbs API — © Microburbs.</strong> Property and neighbourhood estimates; <a href="https://api-ht.microburbs.com.au/docs">API documentation</a>.</li>
-<li><strong>Open G-NAF — © Geoscape Australia, licensed by the Commonwealth.</strong> Address-data credit as specified in the README.</li>
-<li><strong>ABS Census — © Commonwealth of Australia.</strong> Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International (CC BY 4.0)</a>.</li>
-<li><strong>City of Sydney open data</strong>, where used.</li>
-</ul>
-<p>Build and model: <a href="README.md">README.md</a>. Contract cross-check: <a href="docs/API_CONTRACT.md">API_CONTRACT.md</a>. Competitor research: the teammate’s <a href="PLAN.md">6 November plan</a>, with official product sources linked beside the claims. Structure follows the <a href="https://www.microburbs.com.au/p/hackathon-example-rent-report">Microburbs example rent report</a>: overview, data and method, a separate check, and limitations.</p>
-<p><strong>Microburbs estimates, indicative only — not a valuation or financial advice.</strong> Report date: 7 November 2026. Individual facts require their own as-of dates; the report date is not a data-freshness claim.</p>
+  <h2>Sources and credits</h2>
+  <ul class="points">
+    <li>Property and neighbourhood data © Microburbs. <a href="https://api-ht.microburbs.com.au/docs">API documentation</a></li>
+    <li>Open G-NAF © Geoscape Australia, licensed by the Commonwealth. ABS Census © Commonwealth of Australia, CC BY 4.0.</li>
+    <li>Microburbs submission requirements and report format. <a href="https://www.microburbs.com.au/p/hackathon-task-chrome-extension">Task 3 brief</a> · <a href="https://www.microburbs.com.au/p/hackathon-example-rent-report">Example report</a></li>
+  </ul>
+  <p>Microburbs figures are indicative estimates. Report date 7 November 2026.</p>
 </footer>
 </main>
+<script>
+(() => {
+  const example = document.getElementById('example');
+  const profiles = {price: [25, 15, 15, 45], lifestyle: [25, 15, 45, 15]};
+  const choices = [...example.querySelectorAll('[data-buyer]')];
+  const rows = [...example.querySelectorAll('[data-score]')];
+  const score = document.getElementById('demo-score');
+  const reason = document.getElementById('demo-explanation');
+  const needle = example.querySelector('.demo-needle');
+  choices.forEach(button => button.addEventListener('click', () => {
+    const buyer = button.dataset.buyer;
+    const weights = profiles[buyer];
+    let total = 0;
+    rows.forEach((row, index) => {
+      row.querySelector('.demo-weight').textContent = `${weights[index]}% weight`;
+      total += Number(row.dataset.score) * weights[index];
+    });
+    const fit = Math.round(total / 100);
+    score.textContent = fit;
+    needle.style.setProperty('--angle', `${fit * 1.8}deg`);
+    choices.forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
+    reason.textContent = buyer === 'price' ? 'Price carries the most weight, so the weaker Price pillar pulls the score down.' : 'Lifestyle carries the most weight, so the stronger Lifestyle pillar pulls the score up.';
+    rows[buyer === 'price' ? 3 : 2].open = true;
+  }));
+})();
+</script>
 </body>
 </html>
