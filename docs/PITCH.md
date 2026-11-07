@@ -1,125 +1,93 @@
-# Fit — pitch scripts and demo storyboard
+# Fit — Sarah’s pitch and demo
 
-7 November 2026 · Microburbs Hackathon · City of Sydney
+7 November 2026 · Recording script
 
-**Use version 1.** It gives Sarah a concrete problem, makes the moving needle the reveal, and finishes on a number we can substantiate.
+**Record version 1.** The first sentence lands the problem immediately; the final frame lands the number.
 
-**Listing assumption:** the request contained “[paste teammate’s six]” rather than URLs. This storyboard uses the six already recorded in [`tests/e2e/listings.json`](../tests/e2e/listings.json), reproduced below.
+**The real flow:** website sign-up as Sarah → quiz → 401/2 Victoria Park Parade, Zetland → panel scores the home using her saved weights. The website currently runs at `http://localhost:3001`; start at `/login`. Use the listing tab already used for the live check, not a guessed listing URL.
 
-**Evidence behind every closing line:** [`tests/findings.md`](../tests/findings.md), run at 12:17:52 Sydney time on 7 November 2026, records correct address extraction on **6/6 archived listing replays**, three per portal. The proxy was in mock mode and returned the same Surry Hills fixture for all six queries. This is an address-extraction result, **not six correct property matches, live-site reliability, or held-out accuracy**. The scripts use that measured number without upgrading the claim. The run used an earlier panel build; it does not validate the current four-dimension panel. No new run was performed for this document.
+**Live figures supplied for this recording:** rent **$1,100/week**, Sarah’s income **about $600/week**, rent **183% of income**, **2.6 km to work**, nearest **bus 66 m**. The percentage is rounded: 1,100 ÷ 600 × 100 = 183.33%. Distance to work is straight-line distance; any displayed journey time marked “est.” is an estimate. Keep the panel’s source and date visible. These numbers are not a held-out match-rate claim.
 
-## 45-second pitch — version 1: “Can Sarah live here?”
+## Pitch 1 — “More than she earns”
 
-Read the quoted text only, at roughly 145 words per minute. Give the needle moment a two-second pause; finish by 00:45.
+**Target: 40–43 seconds.** Speak only the blockquote. Say “183%” as “one hundred and eighty-three percent”.
 
-> Sarah is nineteen, earns six hundred dollars a week in casual retail, and needs to move out. A beautiful listing doesn’t answer her question: can I afford to live here and get to work?
+> Sarah’s rent costs more than she earns.
 >
-> Fit puts Microburbs facts beside the listing: Commute, Safety, Lifestyle and Price. Six questions set her priorities.
+> She’s nineteen, working casual retail for about six hundred dollars a week. She signs up, takes the quiz, and opens this Zetland apartment.
 >
-> Watch the needle. Give affordability more weight, and her fit score changes. Same home. Same facts. Different priorities.
+> Fit loads her own weights. Watch the needle settle. Expand Commute: work is two-point-six kilometres away, the bus just sixty-six metres.
 >
-> Underneath are the reasons, each with a number and source. The matched address stays visible, so Sarah can check we’re judging the right home.
+> Then open Cons. The rent is eleven hundred dollars a week. Good transport doesn’t make that affordable.
 >
-> Our archived replay check extracted the correct listing address on six out of six.
+> Retake the quiz as someone else and the same home gets a different needle. Fit makes the trade-offs personal. For Sarah, rent alone takes 183%.
 
-| Time | Picture / action |
-| --- | --- |
-| 00:00–00:09 | Sarah title card: “19 · casual retail · $600/week”. Move straight to the Fit panel on listing R1. |
-| 00:09–00:18 | Show her quiz-derived profile and the four dimensions. Keep the matched-address header in view. |
-| 00:18–00:27 | On the same loaded home, raise Price’s weight. Hold the actual before-and-after needle positions. Do not change the facts, budget or income during this shot. |
-| 00:27–00:36 | Point to one available halo, one failo and their sources. Show fewer if fewer qualify. |
-| 00:36–00:45 | Evidence card: **“Correct address extraction · 6/6 archived listing replays”**. Subline: “Mock proxy · earlier build · not a live or held-out match result”. |
+**Picture:** 00:00–00:04 Sarah title card → 00:04–00:12 sign-up and quiz cuts → 00:12–00:19 listing address and her needle → 00:19–00:25 expand Commute → 00:25–00:33 Cons → 00:33–00:39 retake/result comparison → 00:39–00:43 hold **183%** with “of Sarah’s weekly income” beneath it. End here, without a spoken tagline after the number.
 
-## 45-second pitch — version 2: “The score belongs to Sarah”
+## Pitch 2 — “The bus is close. The rent isn’t.”
 
-> Sarah is nineteen. She earns six hundred dollars a week and needs a home that gets her to work without swallowing her pay. A home’s score should reflect her life.
+**Target: 40–43 seconds.** Keep the first sentence inside five seconds.
+
+> Sarah can reach the bus. She can’t reach the rent.
 >
-> Fit asks six questions, then weights Commute, Safety, Lifestyle and Price around the answers, using Microburbs facts beside REA and Domain listings.
+> She’s nineteen, on about six hundred dollars a week in casual retail. On our website, she signs up and takes the quiz. Her answers become her weights.
 >
-> Here’s the moment: Sarah gives Price more weight. Watch the needle move. The property hasn’t changed; what matters to her has.
+> Now she opens this Zetland apartment. Watch her needle. Commute shows two-point-six kilometres to work and a bus sixty-six metres away.
 >
-> Halos and failos explain the result with sourced numbers. Missing data stays missing, and the matched address is visible.
+> But Cons shows eleven hundred dollars a week in rent. Retake the quiz as another person: different priorities, different needle, same home.
 >
-> In our archived replay check, address extraction was correct on six out of six.
+> That’s Fit: facts explained for the person moving in. Sarah’s rent-to-income figure? 183%.
 
-| Time | Picture / action |
-| --- | --- |
-| 00:00–00:10 | Sarah title card, then profile on listing R1. |
-| 00:10–00:20 | Brief quiz view; cut to the saved four weights and Microburbs source labels. |
-| 00:20–00:29 | One Price-weight adjustment; hold the changing needle, with the same matched address visible. |
-| 00:29–00:36 | Sourced reasons and the address header. Show a missing-data state only if one is actually present. |
-| 00:36–00:45 | Same evidence card and qualification as version 1. |
+**Picture:** 00:00–00:05 Sarah and bus fact → 00:05–00:14 sign-up and quiz → 00:14–00:21 matched address and needle → 00:21–00:27 expanded Commute → 00:27–00:33 Cons → 00:33–00:39 second persona’s saved result → 00:39–00:43 **183%** end card.
 
-## 45-second pitch — version 3: “A cheap-looking home can still be wrong”
+## Pitch 3 — “A home can fit the commute and miss the person”
 
-> Sarah is nineteen, on six hundred dollars a week, and moving out. She needs more than a property price. She needs to know whether this home fits her life.
+**Target: 39–43 seconds.** Pause briefly when Cons opens.
+
+> Sarah earns six hundred a week. This rent is eleven hundred.
 >
-> Fit turns Microburbs facts into a personal score beside the listing. Six questions set the weights for Commute, Safety, Lifestyle and Price.
+> She’s nineteen, working casual retail, looking for her first place. She signs up on our website and takes the quiz, then opens this Zetland listing.
 >
-> Now Sarah puts more weight on affordability. Watch the needle change, without changing the home. That’s the clever step: the score follows her priorities.
+> Fit scores it with her own weights. Watch the needle, then expand Commute: two-point-six kilometres to work; bus, sixty-six metres.
 >
-> Below it, sourced positives and negatives explain the trade-offs. We show the matched address and leave missing facts unscored.
+> Open Cons and the trade-off is obvious. Retake the quiz as someone else and watch the needle change. The home stays the same; the person’s circumstances and priorities don’t.
 >
-> Our archived replay check extracted the correct address on six out of six.
+> For Sarah, the number that matters is rent as a share of income: 183%.
 
-| Time | Picture / action |
-| --- | --- |
-| 00:00–00:10 | Sarah card; show her $600 weekly income and $250 weekly budget in Fit. |
-| 00:10–00:20 | Listing R1, four dimensions, quiz-derived weights. |
-| 00:20–00:29 | One affordability-weight change; hold the needle movement. Do not claim a particular direction or invent a score. |
-| 00:29–00:36 | Highlight the displayed address, available reasons and source labels. |
-| 00:36–00:45 | Same evidence card and qualification as version 1. |
-
-## The six listings
-
-These are the teammate’s recorded test URLs and rental / sale classifications, not a claim that the advertisements remain active today. The recorded automated run used archived markup because both portals blocked automated Chromium. The URL and address identify the intended home; the panel’s actual match must still be checked.
-
-| ID | Portal / mode | Address | Listing |
-| --- | --- | --- | --- |
-| R1 | Domain · rent | 17 Young Street, Redfern NSW 2016 | [Open R1](https://www.domain.com.au/17-young-street-redfern-nsw-2016-17875055) |
-| R2 | REA · rent | 504/349–355 Bulwara Road, Ultimo NSW 2007 | [Open R2](https://www.realestate.com.au/property-apartment-nsw-ultimo-426000942) |
-| R3 | Domain · rent | 59 Portman Street, Zetland NSW 2017 | [Open R3](https://www.domain.com.au/59-portman-street-zetland-nsw-2017-17904853) |
-| S1 | REA · buy | 8/342 Bourke Street, Surry Hills NSW 2010 | [Open S1](https://www.realestate.com.au/property-apartment-nsw-surry+hills-147399572) |
-| S2 | REA · buy | 801/8 Darling Island Road, Pyrmont NSW 2009 | [Open S2](https://www.realestate.com.au/property-apartment-nsw-pyrmont-143367376) |
-| S3 | Domain · buy | 110/11 Wigram Lane, Glebe NSW 2037 | [Open S3](https://www.domain.com.au/110-11-wigram-lane-glebe-nsw-2037-2020659759) |
+**Picture:** 00:00–00:05 Sarah’s $600 beside $1,100 rent → 00:05–00:14 website sign-up and quiz → 00:14–00:21 listing and personal needle → 00:21–00:27 expanded Commute → 00:27–00:32 Cons → 00:32–00:39 retake and second needle → 00:39–00:43 **183%** end card.
 
 ## Three-minute demo storyboard
 
-**Recording treatment:** show the Fit panel and the listing’s address / URL context. Frame or mask out listing photos and description text. Use your own title and evidence cards. Keep sources, dates, match warnings and any “Mock data” badge readable. Do not use archived listing screenshots as B-roll.
+**One property throughout:** 401/2 Victoria Park Parade, Zetland. Leave the actual matched unit, saved profile and source labels readable. Show the real needle values; no total score has been supplied, so none is scripted. Frame the extension and address context without copying listing photos or description text. Hide passwords and account tokens during sign-up.
 
-**Profiles:** rentals use the README’s Sarah preset: rent, $250/week budget, $600/week income, work at Broadway, Ultimo; weights 35% Commute, 25% Safety, 15% Lifestyle, 25% Price. For S1–S3, deliberately switch to a separate **“Buyer demonstration”** profile in buy mode with a $1.2 million purchase budget. This is a demo input, not Sarah’s finances or a property price. Rent / buy mode comes from the profile, not the listing’s extracted content.
+**Sarah’s quiz:** use her own completed answers, not the fallback Sarah preset. Select “My first place”, “Shifts at odd hours”, “Every dollar counts”, “Train, bus or ferry” and “A stop close to home”. Continue through the neighbourhood and money questions with her priorities; choose “Sensible money” at the final trade-off. In the details, select rent, enter $600 weekly income and her $250 weekly budget. Use the same workplace address used for the supplied 2.6 km live result. Age 19 and casual retail belong in the opening narration/title card; do not imply the website asks for them if it does not.
 
-The narration below is ready to read. Directions describe what to capture, not results already observed. Rehearse once and keep the final video at or below 03:00.
+**Second persona:** Alex, an office worker earning $3,000/week, willing to spend $1,400/week for convenience. Retake the quiz on the demo account as this hypothetical person: “My first place” → “An office job” → “I’ll pay for the right spot” → “Train, bus or ferry” → “Getting there fast” → “Cafes and markets” → “Always buzzing” → “Paying too much” → “Against nearby sales” → “Easy trips”. Keep the same work address and rent mode. Caption this “Second persona — Alex”; retaking answers need not rename the account. Both income and preferences change, so describe the new score as a change in personal fit, not proof that weights alone caused it.
 
-| Time | Screen and action | Spoken narration |
+| Time | What the filmer does | Voiceover |
 | --- | --- | --- |
-| 00:00–00:12 | Sarah card, then R1 in Domain with Fit open. Show the actual match status. | “Sarah is nineteen, earns six hundred dollars a week in casual retail, and needs to move out. Fit helps her weigh a home against her own priorities.” |
-| 00:12–00:28 | R1: show the six-question onboarding flow briefly, then Sarah’s saved preset and four weights. | “Six questions turn her answers into weights for Commute, Safety, Lifestyle and Price. This is Sarah’s starting profile: two hundred and fifty dollars a week, with work in Ultimo.” |
-| 00:28–00:43 | R1: point to extracted address, matched address, one available reason and its source / date. If the match is wrong or uncertain, use the replacement line below. | “First, check the home. The address we read and the address we matched must agree. The facts come from Microburbs. Each displayed reason carries its number and source.” |
-| 00:43–01:00 | R1: capture the needle before changing Price’s weight. Make one clear adjustment; hold the actual resulting score. Keep the address and underlying facts fixed. | “Now give affordability more weight. Watch the needle move. The home and facts stay the same; their importance changes. That is personal fit, and the reasons underneath let Sarah inspect it.” |
-| 01:00–01:16 | R2, REA: focus on unit 504 and street-number range 349–355 in the query and returned match. Show actual confidence or correction controls. | “On REA, this address has both a unit number and a street-number range. Unit five-oh-four at three-forty-nine to three-fifty-five must not silently become another apartment.” |
-| 01:16–01:31 | R3, Domain: show actual available dimensions and their sources. If a signal is missing, show its empty state; otherwise retain the real populated view. | “At Portman Street, check the available evidence again. Missing facts are left unscored, never treated as zero. A score summarises what is available; it doesn’t promise complete coverage.” |
-| 01:31–01:47 | S1, REA: switch to “Buyer demonstration”, buy mode, $1.2m budget. Show the matched unit and available Price evidence. | “Now a separate buyer demonstration, with a one-point-two-million-dollar budget. Buying compares Microburbs’ estimated value with that budget. We read only the listing address, not the advertised asking price.” |
-| 01:47–02:02 | S2, REA: show unit 801 at 8 Darling Island Road, actual match status, then one available sourced factor. | “At Darling Island Road, the same identity check matters: unit eight-oh-one, street number eight. A useful-looking number is no help if it belongs to the wrong home.” |
-| 02:02–02:17 | S3, Domain: focus on unit 110 at 11 Wigram Lane. Open “Not this one?” or the typed-address control without implying the first match was wrong. | “At Wigram Lane, check unit one-ten at number eleven. If the match is uncertain, the candidate picker or typed address gives the user a way to correct it.” |
-| 02:17–02:33 | Stay on S3. Show one real source label, as-of date and estimates footer. Add a small “City of Sydney trial only” caption. | “Coverage is the City of Sydney trial area. Sources and dates stay visible. These are indicative estimates, not a valuation or financial advice. We never turn unavailable data into certainty.” |
-| 02:33–02:48 | Evidence card: “Address extraction: 6/6 archived replays”. Below: “3 REA + 3 Domain · mock proxy · earlier build · not held-out matching”. | “Our recorded check extracted the correct address from six archived listings: three on each portal. It used a mock proxy and an earlier build, so this is not a live address-match rate.” |
-| 02:48–03:00 | Return to Sarah’s profile and the recorded needle moment; finish on the qualified evidence card, without animating a fabricated score. | “The useful step is personal weighting, with reasons you can inspect. The measured result so far: correct address extraction in archived replays, six out of six.” |
+| 00:00–00:12 | Open the website sign-up page. Title: “Sarah · 19 · casual retail · ~$600/week”. Start creating Sarah’s demo account. | “Sarah earns about six hundred dollars a week. The home we’re about to open has eleven hundred dollars a week in rent. Let’s see what that means for her.” |
+| 00:12–00:27 | Complete sign-up and enter the quiz. Cut password entry and waiting time, but retain the real success transition. | “I’m signing up as Sarah on the website. Her account saves her quiz answers, so the extension can use her own priorities when she opens a listing.” |
+| 00:27–00:47 | Show Sarah’s first-place, shift-work, tight-budget and public-transport answers. Complete the remaining questions with concise cuts. | “She’s finding her first place, working shifts, watching every dollar and relying on public transport. Each answer changes the balance of what matters to her.” |
+| 00:47–01:00 | Show rent mode, income, budget and workplace; save. Hold the resulting weights. | “We enter her six-hundred-dollar weekly income and workplace, then save. These are the weights from her answers. We’re not using the panel’s default example profile.” |
+| 01:00–01:16 | Open 401/2 Victoria Park Parade, Zetland. Open the side panel; show the matched unit and account/profile. If the panel asks for login, use Sarah’s account with credential entry cut. | “Now open unit four-oh-one, two Victoria Park Parade in Zetland. Check the matched address and saved account. The panel brings her profile together with Microburbs facts about this home.” |
+| 01:16–01:29 | Hold the loaded score and the needle settling. Keep Sarah’s profile visible. | “Here’s Sarah’s needle. It summarises the available facts using her weights. The score is useful because we can open it up and inspect the reasons.” |
+| 01:29–01:48 | Expand **Commute**. Point to **2.6 km to work** and **bus 66 m**, then their sources. | “Commute shows two-point-six kilometres to work, with a bus sixty-six metres away. The work distance is straight-line; journey times labelled ‘est.’ are estimates. The source sits beneath the fact.” |
+| 01:48–02:07 | Open or scroll to **Cons**. Hold **$1,100/wk · 183% of income** long enough to read. | “Now Cons. Eleven hundred dollars a week is one hundred and eighty-three percent of Sarah’s income. That rent exceeds everything she earns, before food or transport. A nearby bus doesn’t erase the trade-off.” |
+| 02:07–02:29 | Click **Retake the quiz**. On the website, answer as Alex using the path above; use labelled jump cuts. Enter $3,000 income and $1,400 budget, retain workplace, save. | “Retake the quiz as Alex: an office worker with a higher income, willing to pay for convenience and a lively neighbourhood. We change the answers and finances, save, and return to exactly the same home.” |
+| 02:29–02:46 | Return focus to the listing and allow saved-profile sync. Show changed weights and the actual different needle. Compare a clearly labelled capture of Sarah’s earlier score with Alex’s current score. | “The saved profile updates, and the needle changes. The property facts haven’t changed; the person’s circumstances and priorities have. That is the point of a personal fit score.” |
+| 02:46–03:00 | Show the captured Sarah Cons row, labelled “Sarah’s earlier result”. End on “183% of Sarah’s weekly income” with $1,100 ÷ $600 underneath. | “Fit makes the trade-off visible, with facts you can inspect. For Sarah, the closing number is rent as a share of her weekly income: one hundred and eighty-three percent.” |
 
-### Honest replacement lines for recording
+## Recording lock
 
-Use the line that matches what is actually on screen; keep it inside that shot’s allotted time.
+Before the take, verify the matched unit and supplied figures, confirm Sarah’s website profile reaches the panel, and rehearse the retake until the two actual needle values differ. Do not replace her quiz-derived weights with preset percentages or claim a particular total score. If a live figure has changed, update the narration and end card together before recording.
 
-- **Wrong or ambiguous home:** “This result is not an exact match. We flag that uncertainty and let the user select a candidate or type the address. These facts cannot yet be attributed to this listing.”
-- **Portal blocked or listing unavailable:** “This listing could not be loaded here. I’m entering its recorded address manually; this demonstrates the fallback, not automatic extraction from a live page.” Show the corresponding address from the six-listing table in Fit’s existing manual-entry control.
-- **Mock facts:** “This is mock data demonstrating the interface, not facts about this advertised home.” Keep the mock label visible and do not describe the fixture as a successful property match.
-- **No value or other signal returned:** “Microburbs has no figure for this signal here. It stays unscored.”
+Speak naturally at about 150–160 words per minute for the pitches, with a short hold on the final number. The storyboard deliberately leaves pauses for clicks and reading. Retakes can be cut for time; do not fake the saved-profile transition or needle movement. Finish both exports by **14:45**: pitch under 45 seconds, demo no longer than three minutes, each under 95 MB.
 
-### Lock the needle shot before recording
+## One-command video export
 
-1. At **13:45**, use the recording build to load R1 and confirm its match and data mode. Choose a weight adjustment that actually changes the rounded score; the movement depends on the available dimension scores. Keep income, budget and property facts unchanged during the adjustment.
-2. If R1 cannot produce that shot, try R2, then R3. Use the successful rental for the pitch and main needle demonstration, while retaining all six addresses in the demo. Do not manufacture movement or reuse the old mock run’s 60 / 70 values as current Fit results.
-3. If only a fixture works, label it “Mock data — interaction demonstration” throughout. The needle shot then demonstrates the interaction only. If no actual movement works, the advertised shot is not ready to record; fix or simplify the interaction first.
-4. At **14:15**, review new evidence before replacing the closing number. Keep the complete existing 6/6 archived-extraction line unless a new, documented result supports a stronger claim. The six rehearsed addresses cannot become a held-out sample.
+```bash
+./tools/compress.sh "/path/to/recording.mov"
+```
 
-**Definition of done:** one rehearsed pitch under 45 seconds, one demo under three minutes, all six addresses represented, one real captured needle movement with its data mode disclosed, and every spoken measurement traceable to recorded evidence. Export `pitch.mp4` and `demo.mp4`, each under 95 MB, by **14:45**.
+The script writes `recording-compressed.mp4` beside the original, prints its final size, and refuses to overwrite an existing output. It uses H.264, at most 1920 × 1080, 30 fps and AAC audio when the input has audio. FFmpeg and FFprobe must be installed; if missing, the script prints the installation command. It checks the actual output size and retries at a lower bitrate if necessary; it never truncates the video to meet the cap.
