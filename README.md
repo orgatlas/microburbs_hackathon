@@ -127,6 +127,7 @@ Until the proxy is live, the panel runs on `proxy/fixtures/lookup.sample.json`, 
 - **14:45** final push. **15:00** close.
 
 ### How to run
+Start the proxy, Django and the website together with `./run.sh`, and stop them with Ctrl+C. The steps below start the proxy alone.
 ```bash
 cd proxy && cp .env.example .env   # paste the team key
 npm install && npm start           # http://localhost:3000
