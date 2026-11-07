@@ -10,10 +10,24 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "permissions": [
+    "storage"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://www.realestate.com.au/*", "https://www.domain.com.au/*"],
-      "js": ["src/extract.js", "src/panel.js", "src/content.js"],
+      "matches": [
+        "https://www.realestate.com.au/*",
+        "https://www.domain.com.au/*"
+      ],
+      "js": [
+        "src/extract.js",
+        "panel/score.js",
+        "panel/meter.js",
+        "panel/halos.js",
+        "panel/profile.js",
+        "src/panel.js",
+        "src/content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
