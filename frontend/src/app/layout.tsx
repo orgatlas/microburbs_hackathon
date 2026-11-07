@@ -1,29 +1,27 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Nunito_Sans } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const nunitoSans = Nunito_Sans({
+  variable: "--font-nunito-sans",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "MicroMatch",
-  description: "See how well a Sydney property matches your life.",
+  title: "MicroMatch: find the home that feels like yours",
+  description:
+    "A Chrome extension that gets to know you, then gives each home a match score for the way you live.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className={`${fraunces.variable} ${nunitoSans.variable} antialiased`}>
+      <body>{children}</body>
     </html>
   );
 }
