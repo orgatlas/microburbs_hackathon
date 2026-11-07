@@ -6,11 +6,12 @@ This is the agreement between the backend, extension and website. Carl owns it. 
 - Production base URL: to be decided
 - There are no accounts. The client stores the quiz profile and sends it with each match.
 - Routes have no trailing slash.
+- There is no mock mode: until real matching lands here, `POST /api/match` answers 501 `not_implemented` and the extension's facts come from the live proxy, `GET http://localhost:3000/lookup?address=...`, which calls the Microburbs API.
 
 ## `GET /api/health`
 
 ```json
-{ "status": "ok", "mock": true }
+{ "status": "ok" }
 ```
 
 ## `GET /api/quiz`
@@ -122,15 +123,6 @@ Errors use a 4xx or 5xx status.
 ```json
 { "status": "error", "code": "missing_address", "message": "Send an address or a gnaf_id." }
 ```
-
-## Testing the states in mock mode
-
-| Address contains | Status returned |
-| --- | --- |
-| `ambiguous` | `ambiguous` |
-| `melbourne` | `out_of_area` |
-| `nowhere` | `no_match` |
-| anything else | `matched` |
 
 ## Accounts and saved quizzes
 
