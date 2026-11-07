@@ -1,7 +1,7 @@
 // MicroMatch service worker: the only part of the extension that talks to the network.
 // In: the listing ADDRESS from the content script (nothing else is read off the page), or a typed
 // address / chosen candidate from the side panel. Out: GET ${API_BASE}/lookup?address=&work=
-// (work = profile.workAddress) to the team proxy, which holds the Microburbs key and answers
+// (&work= only when the saved profile has a workAddress) to the team proxy, which holds the Microburbs key and answers
 // README Contract 2 ({ matched, facts, outsideCoverage }).
 // Each tab's result lives in chrome.storage.session under "tab:<id>"; the side panel renders it.
 import { API_BASE } from "./config.js";
@@ -10,16 +10,6 @@ import { API_BASE } from "./config.js";
 import * as adapterModule from "../sidepanel/adapter.js";
 import * as profileModule from "../sidepanel/profile.js";
 import * as scoreModule from "../sidepanel/score.js";
-
-// README Contract 1: used verbatim when chrome.storage.local has no "profile".
-const SARAH = Object.freeze({
-  name: "Sarah",
-  mode: "rent",
-  budgetWeekly: 250,
-  incomeWeekly: 600,
-  workAddress: "Broadway, Ultimo NSW",
-  weights: Object.freeze({ commute: 0.35, safety: 0.25, lifestyle: 0.15, price: 0.25 }),
-});
 
 // No result cache here on purpose: every check asks the live proxy (it has its own cache), so a
 // stopped proxy can never be masked by an old answer.
@@ -109,9 +99,9 @@ async function readProfile() {
     const { profile } = await chrome.storage.local.get("profile");
     if (profile && typeof profile === "object" && !Array.isArray(profile)) return profile;
   } catch {
-    // Storage unavailable: fall through to Sarah.
+    // Storage unavailable: no profile.
   }
-  return SARAH;
+  return null; // no default persona: no &work=, no fit badge
 }
 
 async function readSession(key) {
@@ -145,7 +135,9 @@ async function computeFit(record, rawProfile) {
   const normalize = findFunction(profileModule, ["normalizeProfile", "normaliseProfile", "normalize"]);
   const score = findFunction(scoreModule, ["scoreListing", "computeFit", "score", "computeScore", "fitScore", "scoreFit"]);
   if (!adapt || !score) return null;
-  const profile = (normalize && (await normalize(rawProfile))) || rawProfile;
+  if (!rawProfile) return null; // no profile, no fit
+  const profile = normalize ? await normalize(rawProfile) : rawProfile;
+  if (!profile) return null; // nothing recognisable in the stored profile
   const adapted = await adapt(record);
   const fit = readFit(await score(adapted, profile));
   return Number.isFinite(fit) ? Math.max(0, Math.min(100, Math.round(fit))) : null;
@@ -156,7 +148,7 @@ async function setBadge(tabId, record, profile) {
   let color = null;
   if (record?.status === "matched") {
     try {
-      const fit = await computeFit(record, profile || (await readProfile()));
+      const fit = await computeFit(record, profile || (await readProfile())); // null without a profile: empty badge
       if (fit !== null) {
         text = String(fit);
         color = fit >= 70 ? "#1f7a4d" : fit <= 30 ? "#b42318" : "#9a6700"; // Halo / Failo / Meh
