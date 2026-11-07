@@ -1,238 +1,241 @@
-// Glue: on a listing page, find the address (extract.js), show the panel
-// (panel.js) and ask the service worker for the Microburbs facts.
-// Only the listing address and the profile's work address are ever sent. The fit score is
-// computed here (MBX.score.scoreListing), so income and budget never leave the browser.
-// The profile (MBX.profile) lives in chrome.storage.local; nothing else is stored.
+// Side-panel content script for realestate.com.au and domain.com.au. Loaded after src/extract.js.
+//
+// PRIVACY: the only thing that leaves the page is the listing's ADDRESS string, found by
+// MBX.extractAddress (JSON-LD, then the h1; otherwise the user types it). No other listing text, no price,
+// photos or agent details, no screenshots. No storage, no network, no DOM writes: the panel
+// lives in Chrome's side panel, and this script only tells the service worker which address
+// this tab is showing:
+//   { type: "listing-address", address: "<address>" | null, listing: true }    a listing page
+//   { type: "listing-address", address: null, listing: false }                any other page
+// Both sites are single-page apps, so it re-runs whenever the page's path changes (1 s poll,
+// popstate, Navigation API, back/forward cache) and whenever the background asks with
+// { type: "extract-address" }.
 globalThis.MBX = globalThis.MBX || {};
 
 (function (MBX) {
   'use strict';
 
-  if (MBX.contentLoaded) return; // guard against double injection
-  MBX.contentLoaded = true;
+  // Guard against double injection. A copy orphaned by an extension reload does not count.
+  const prior = MBX.contentInstance;
+  if (prior && typeof prior.alive === 'function' && prior.alive()) return;
+  if (prior && typeof prior.stop === 'function') prior.stop();
 
-  const URL_POLL_MS = 800;
-  const SPA_SETTLE_MS = 600; // after an in-page navigation, let the new listing render first
+  const URL_POLL_MS = 1000;
+  const SPA_SETTLE_MS = 700; // after an in-page navigation, let the new listing render first
   const EXTRACT_TIMEOUT_MS = 8000;
+  const RETRY_MS = 300; // re-read while the page still shows the listing we just left
+  const MAX_ADDRESS_CHARS = 200;
 
-  let panel = null;
-  let pageKey = null; // origin + path of the page the panel belongs to
-  let run = 0; // bumped on every new page / lookup / close; stale answers are dropped
-  let last = { address: null, source: null };
-  let lastBlob = null; // the blob on screen, for re-scoring after a profile save
-  let profile = null;
-  let profileP = null;
-  let picked = null; // { gnaf_id, display_name } of the last "Not this one?" pick
+  let pageKey = null; // origin + path of the page this script is reporting (query and hash ignored)
+  let run = 0; // bumped on every run; answers from older runs are dropped
+  let inflight = 0; // the run id of a listing extraction still in progress
+  let reported = { key: null, address: null }; // the last address sent, and for which page
+  let dead = false;
+  let timer = null;
+  const warned = new Set();
 
-  // Dev/test only: chrome.storage.local["mbx.dev"] === true keeps the panel's shadow root open so the e2e harness
-  // can read it. Otherwise it is closed, so the listing site's scripts cannot read the profile figures in the panel.
-  let shadowMode = 'closed';
-  const devP = Promise.resolve()
-    .then(() => chrome.storage.local.get('mbx.dev'))
-    .then((o) => {
-      if (o && o['mbx.dev'] === true) shadowMode = 'open';
-    })
-    .catch(() => {});
-
-  function loadProfile() {
-    if (profile) return Promise.resolve(profile);
-    if (!profileP) {
-      const P = MBX.profile;
-      profileP = Promise.resolve()
-        .then(() => (P && typeof P.load === 'function' ? P.load() : null))
-        .catch((err) => {
-          console.warn('[Listing Check] profile could not load', err);
-          return null;
-        })
-        .then((p) => {
-          profile = p || (P && P.DEFAULT) || null;
-          profileP = null;
-          return profile;
-        });
-    }
-    return profileP;
-  }
-
-  const workOf = (p) => (p && typeof p.work_address === 'string' ? p.work_address.replace(/\s+/g, ' ').trim() : '');
-
-  function scoreFor(blob, p) {
-    if (!blob || blob.status !== 'ok' || !MBX.score || typeof MBX.score.scoreListing !== 'function') return null;
+  const nav = (() => {
     try {
-      return MBX.score.scoreListing(blob.facts || null, p || {});
-    } catch (err) {
-      console.warn('[Listing Check] score failed', err);
+      return typeof navigation !== 'undefined' && navigation && typeof navigation.addEventListener === 'function' ? navigation : null;
+    } catch {
       return null;
     }
+  })();
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const norm = (a) => String(a || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+  function warnOnce(what, detail) {
+    if (warned.has(what)) return;
+    warned.add(what);
+    console.warn('[MicroMatch] ' + what, detail || '');
   }
 
-  function onProfileSave(next) {
-    if (!next || typeof next !== 'object') return;
-    const workMoved = workOf(next) !== workOf(profile);
-    profile = next;
-    if (!panel || !lastBlob) return;
-    if (workMoved && last.address) {
-      lookup(last.address, last.source); // the commute needs the new workplace located by the proxy
-      return;
-    }
+  function keyOf(href) {
     try {
-      if (typeof panel.updateScore === 'function') panel.updateScore(scoreFor(lastBlob, profile), profile);
-    } catch (err) {
-      console.warn('[Listing Check] re-score failed', err);
-    }
-  }
-
-  const keyOf = (href) => {
-    try {
-      const u = new URL(href);
+      const u = new URL(String(href));
       return u.origin + u.pathname.replace(/\/+$/, '');
     } catch {
       return String(href);
     }
-  };
-
-  function setState(state) {
-    if (!panel) return;
-    try {
-      panel.setState(state);
-    } catch (err) {
-      console.warn('[Listing Check] panel could not render', err);
-    }
   }
 
-  function destroyPanel() {
-    if (!panel) return;
-    const p = panel;
-    panel = null;
+  function alive() {
+    if (dead) return false;
     try {
-      p.destroy();
+      return Boolean(chrome && chrome.runtime && chrome.runtime.id);
     } catch {
-      /* already gone */
+      return false;
     }
   }
 
-  function createPanel() {
-    destroyPanel();
-    if (typeof MBX.createPanel !== 'function') {
-      console.warn('[Listing Check] panel.js did not load');
+  // The extension was reloaded or removed: stop quietly instead of throwing every second.
+  function stop() {
+    if (dead) return;
+    dead = true;
+    run++;
+    inflight = 0;
+    if (timer) clearInterval(timer);
+    timer = null;
+    try {
+      window.removeEventListener('popstate', onNavigate);
+      window.removeEventListener('pageshow', onPageShow);
+      if (nav) nav.removeEventListener('currententrychange', onNavigate);
+    } catch {
+      /* page already gone */
+    }
+    try {
+      chrome.runtime.onMessage.removeListener(onMessage);
+    } catch {
+      /* context invalidated */
+    }
+  }
+
+  function onSendError(err) {
+    const m = String((err && err.message) || err || '');
+    if (/context invalidated/i.test(m)) return stop();
+    // The background does not have to answer, and a worker that is restarting may miss one.
+    if (/message port closed|receiving end does not exist|could not establish connection/i.test(m)) return;
+    warnOnce('could not reach the background', m);
+  }
+
+  function send(message) {
+    if (!alive()) return stop();
+    try {
+      const p = chrome.runtime.sendMessage(message);
+      if (p && typeof p.catch === 'function') p.catch(onSendError);
+    } catch (err) {
+      onSendError(err);
+    }
+  }
+
+  // The address string and two flags. Nothing else from the page, ever.
+  function report(key, address, listing) {
+    const a = listing && typeof address === 'string' && address.trim() ? address.trim().slice(0, MAX_ADDRESS_CHARS) : null;
+    reported = { key, address: a };
+    send({ type: 'listing-address', address: a, listing: Boolean(listing) });
+  }
+
+  function isListing(href) {
+    if (typeof MBX.isListingPage !== 'function') {
+      warnOnce('extract.js did not load: no listing detection');
+      return false;
+    }
+    try {
+      return Boolean(MBX.isListingPage(href));
+    } catch {
+      return false;
+    }
+  }
+
+  // Reads the address, but treats the address of the listing we just left as "not rendered yet":
+  // a single-page app can change the URL before it swaps the page. If that address is still
+  // there at the deadline, it is the same home after all.
+  async function extractFresh(avoid, deadline, current) {
+    if (typeof MBX.extractAddress !== 'function') {
+      warnOnce('extract.js did not load: no address extraction');
+      return null;
+    }
+    for (;;) {
+      let hit = null;
+      try {
+        hit = await MBX.extractAddress({ timeoutMs: Math.max(0, deadline - Date.now()) });
+      } catch (err) {
+        warnOnce('address extraction failed', String((err && err.message) || err));
+        hit = null;
+      }
+      if (!current()) return null;
+      if (!hit || typeof hit.address !== 'string' || !hit.address.trim()) return null;
+      if (!avoid || norm(hit.address) !== norm(avoid)) return hit;
+      if (Date.now() + RETRY_MS >= deadline) return hit;
+      await sleep(RETRY_MS);
+      if (!current()) return null;
+    }
+  }
+
+  async function runFor(key, settleMs, avoid) {
+    const myRun = ++run;
+    const current = () => !dead && myRun === run && keyOf(location.href) === key;
+    if (!isListing(location.href)) {
+      inflight = 0;
+      report(key, null, false);
       return;
     }
-    panel = MBX.createPanel({
-      shadowMode,
-      onSubmitAddress(text) {
-        const t = String(text == null ? '' : text).trim();
-        if (t) lookup(t, 'typed');
-      },
-      onPickCandidate(c) {
-        const t = c && typeof c.display_name === 'string' ? c.display_name.trim() : '';
-        if (!t) return;
-        picked = { gnaf_id: typeof c.gnaf_id === 'string' ? c.gnaf_id : null, display_name: t };
-        lookup(t, 'picked');
-      },
-      onProfileSave,
-      onRetry() {
-        if (last.address) lookup(last.address, last.source);
-        else start(0);
-      },
-      onClose() {
-        run++; // drop anything still in flight for this page
-        destroyPanel();
-      },
-    });
-  }
-
-  async function start(delayMs) {
-    const myRun = ++run;
-    const key = pageKey;
-    last = { address: null, source: null };
-    lastBlob = null;
-    createPanel();
-    setState({ kind: 'detecting' });
-    if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
-    if (myRun !== run || key !== keyOf(location.href)) return;
-    let hit = null;
+    inflight = myRun;
     try {
-      hit = await MBX.extractAddress({ timeoutMs: EXTRACT_TIMEOUT_MS });
-    } catch (err) {
-      console.warn('[Listing Check] address extraction failed', err);
-    }
-    if (myRun !== run || key !== keyOf(location.href)) return;
-    if (!hit) {
-      setState({ kind: 'need_address', reason: 'not_found' });
-      return;
-    }
-    lookup(hit.address, hit.source);
-  }
-
-  async function lookup(address, source) {
-    if (!panel) createPanel();
-    const myRun = ++run;
-    const key = pageKey;
-    last = { address, source };
-    lastBlob = null;
-    setState({ kind: 'loading', address, source });
-    const p = await loadProfile();
-    if (myRun !== run || key !== keyOf(location.href)) return;
-    let res;
-    try {
-      res = await chrome.runtime.sendMessage({ type: 'MBX_LOOKUP', address, work: workOf(p) });
-    } catch (err) {
-      res = {
-        ok: false,
-        message: 'The extension was reloaded or its background worker is not answering. Reload this page.',
-        detail: String((err && err.message) || err),
-      };
-    }
-    if (myRun !== run || key !== keyOf(location.href)) return; // stale: page or query changed
-    if (res && res.ok && res.blob) {
-      res.blob = flagPickMismatch(res.blob, source);
-      lastBlob = res.blob;
-      setState({ kind: 'result', address, source, blob: res.blob, score: scoreFor(res.blob, profile), profile });
-    } else {
-      setState({
-        kind: 'error',
-        address,
-        source,
-        message: (res && res.message) || 'The lookup failed.',
-        detail: (res && res.detail) || '',
-      });
+      if (settleMs) await sleep(settleMs);
+      if (!current()) return;
+      const hit = await extractFresh(avoid, Date.now() + EXTRACT_TIMEOUT_MS, current);
+      if (!current()) return; // stale: the page changed while we were reading it
+      report(key, hit ? hit.address : null, true);
+    } finally {
+      if (inflight === myRun) inflight = 0;
     }
   }
 
-  // A pick is looked up again by its text; say so if the proxy landed on a different home than the one clicked.
-  function flagPickMismatch(blob, source) {
-    const m = blob && blob.match;
-    if (source !== 'picked' || !picked || !picked.gnaf_id || !m || !m.gnaf_id || m.gnaf_id === picked.gnaf_id) return blob;
-    const chk = m.check && typeof m.check === 'object' ? m.check : {};
-    const notes = Array.isArray(chk.notes) ? chk.notes : [];
-    const note = 'You picked ' + picked.display_name + '; closest match is ' + (m.display_name || 'another home');
-    return { ...blob, match: { ...m, check: { ...chk, verdict: chk.verdict === 'exact' ? 'partial' : chk.verdict || 'weak', notes: [note, ...notes] } } };
+  function start(key, settleMs, avoid) {
+    runFor(key, settleMs, avoid).catch((err) => warnOnce('address check failed', String((err && err.message) || err)));
   }
 
-  function check(isInitial) {
+  const busy = () => inflight !== 0 && inflight === run;
+
+  // Starts a run when the page's path changed. Returns true if it did.
+  function check(initial) {
+    if (!alive()) {
+      stop();
+      return false;
+    }
     const key = keyOf(location.href);
-    if (key === pageKey) return;
+    if (key === pageKey) return false;
+    const left = reported.key === pageKey ? reported.address : null;
     pageKey = key;
-    if (MBX.isListingPage(location.href)) {
-      start(isInitial ? 0 : SPA_SETTLE_MS);
-    } else {
-      run++;
-      last = { address: null, source: null };
-      lastBlob = null;
-      destroyPanel();
+    start(key, initial ? 0 : SPA_SETTLE_MS, initial ? null : left);
+    return true;
+  }
+
+  function onNavigate() {
+    check(false);
+  }
+
+  // Back/forward cache: this page is showing again, but the background may hold another page's answer.
+  function onPageShow(e) {
+    if (!e || !e.persisted) return;
+    if (!check(true) && !busy()) start(pageKey, 0, null);
+  }
+
+  // The background (or the side panel) asks which address this tab is showing.
+  function onMessage(msg, sender, sendResponse) {
+    if (!msg || msg.type !== 'extract-address') return;
+    try {
+      if (sender && sender.id && sender.id !== chrome.runtime.id) return;
+    } catch {
+      return;
+    }
+    // A path change starts its own run; a run in flight will answer; otherwise read the page again.
+    if (!check(false) && !busy() && !dead) start(pageKey, 0, null);
+    try {
+      sendResponse({ ok: true }); // the answer itself arrives as a "listing-address" message
+    } catch {
+      /* channel closed */
     }
   }
 
-  // Toolbar button (background.js): bring the panel back after Close.
-  chrome.runtime.onMessage.addListener((msg, sender) => {
-    if (!sender || sender.id !== chrome.runtime.id || !msg || msg.type !== 'MBX_OPEN') return;
-    if (panel) return; // already showing (or collapsed to the pill)
-    pageKey = null;
-    check(true);
-  });
+  MBX.contentLoaded = true;
+  MBX.contentInstance = { alive, stop };
 
-  devP.then(() => {
-    window.addEventListener('popstate', () => check(false));
-    setInterval(() => check(false), URL_POLL_MS);
-    check(true);
-  });
+  try {
+    chrome.runtime.onMessage.addListener(onMessage);
+  } catch (err) {
+    onSendError(err);
+  }
+  if (dead) return;
+  window.addEventListener('popstate', onNavigate);
+  window.addEventListener('pageshow', onPageShow);
+  try {
+    if (nav) nav.addEventListener('currententrychange', onNavigate);
+  } catch {
+    /* no Navigation API: the poll covers it */
+  }
+  timer = setInterval(() => check(false), URL_POLL_MS);
+  check(true);
 })(globalThis.MBX);
