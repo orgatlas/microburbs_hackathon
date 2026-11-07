@@ -83,7 +83,9 @@ async function openListing({ ctx, sw, extId }) {
   for (let i = 0; i < 80 && !tabId; i++) {
     tabId = await sw.evaluate(async (u) => {
       const all = await chrome.storage.session.get(null);
-      for (const [k, v] of Object.entries(all)) if (k.startsWith("tab:") && v && (!v.pageUrl || v.pageUrl.startsWith(u))) return Number(k.slice(4));
+      // Only the listing tab's own record: a blank or panel tab can briefly hold a "loading" record
+      // with no pageUrl, and attaching the panel to it showed "empty" (the old flake).
+      for (const [k, v] of Object.entries(all)) if (k.startsWith("tab:") && typeof v?.pageUrl === "string" && v.pageUrl.startsWith(u)) return Number(k.slice(4));
       return null;
     }, LISTING);
     if (!tabId) await sleep(250);
