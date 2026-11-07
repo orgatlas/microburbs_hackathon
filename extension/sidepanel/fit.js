@@ -1,4 +1,4 @@
-import { SARAH, loadProfile } from './profile.js';
+import { loadProfile } from './profile.js';
 
 // Simple fit display for the native side panel. Facts and scores come from the existing adapter/scorer.
 
@@ -168,17 +168,17 @@ import { SARAH, loadProfile } from './profile.js';
     container.replaceChildren(content);
   }
 
-// The saved profile (chrome.storage.local.profile) when the panel has one; Sarah otherwise. Never blocks.
+// The saved profile (chrome.storage.local.profile) when there is one; null otherwise (no default persona). Never blocks.
 let cachedProfile = null;
 try {
   if (globalThis.chrome?.storage?.local) {
-    const refreshProfile = () => loadProfile().then(p => { if (p) cachedProfile = p; }).catch(() => {});
+    const refreshProfile = () => loadProfile().then(p => { cachedProfile = p || null; }).catch(() => {});
     refreshProfile();
     globalThis.chrome.storage.onChanged?.addListener((changes, area) => {
       if (area === 'local' && changes && 'profile' in changes) refreshProfile();
     });
   }
-} catch { /* no extension storage (tests, scratch pages): Sarah stays the fallback */ }
+} catch { /* no extension storage (tests, scratch pages): no profile */ }
 
 // Straight-line speeds (km/h) for the estimated commute; always labelled "(est.)".
 const SPEEDS = { walk: 5, cycle: 15, train: 25, bus: 25, 'light rail': 25, tram: 25, ferry: 25, drive: 20 };
@@ -242,7 +242,7 @@ export function factLine(signal, profile) {
       main = join([transitMode(s.label), s.stopName || s.stop_name || s.name, display]);
       break;
     case 'work_distance': {
-      const p = profile || SARAH;
+      const p = profile || {};
       const mode = commuteMode(p);
       const minutes = commuteMinutes(signalKm(s), mode);
       const work = typeof p.workAddress === 'string' && p.workAddress.trim() ? p.workAddress.trim() : '';
@@ -280,7 +280,7 @@ export function factLine(signal, profile) {
 // Only reported evidence is shown; unavailable signals do not become placeholder numbers.
 export function summarizeFit(result, trusted = true, profile = null) {
   if (!trusted) return { total: null, coverage: { scored: 0, of: 4 }, pillars: [], pros: [], cons: [] };
-  const who = profile || result?.profile || cachedProfile || SARAH;
+  const who = profile || result?.profile || cachedProfile || null;
   const dimensions = result?.dimensions || [];
   const pillars = dimensions.map(dimension => ({
     key: dimension.key,
