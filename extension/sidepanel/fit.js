@@ -1,3 +1,5 @@
+import { SARAH, loadProfile } from './profile.js';
+
 // Simple fit display for the native side panel. Facts and scores come from the existing adapter/scorer.
 
   var nextId = 0;
@@ -107,7 +109,12 @@
         section.appendChild(element('h3', '', group[0]));
         if (group[1].length) {
           var list = element('ul');
-          group[1].forEach(function (text) { list.appendChild(element('li', '', text)); });
+          group[1].forEach(function (line) {
+            var li = element('li');
+            li.appendChild(element('span', 'mbx-fit__fact-main', typeof line === 'string' ? line : line.main));
+            if (line && line.src) li.appendChild(element('span', 'mbx-fit__fact-src', line.src));
+            list.appendChild(li);
+          });
           section.appendChild(list);
         } else section.appendChild(element('p', 'mbx-fit__muted', 'None flagged'));
         columns.appendChild(section);
@@ -148,10 +155,8 @@
         var list = element('dl', 'mbx-fit__facts');
         item.rows.forEach(function (fact) {
           var entry = element('div', 'mbx-fit__fact');
-          entry.appendChild(element('dt', '', fact.label));
-          entry.appendChild(element('dd', '', fact.value));
-          if (fact.source || fact.asOf) entry.appendChild(element('dd', 'mbx-fit__source',
-            [fact.source, fact.asOf].filter(Boolean).join(' · ')));
+          entry.appendChild(element('dt', 'mbx-fit__fact-main', fact.main || [fact.label, fact.value].filter(Boolean).join(' · ')));
+          if (fact.src) entry.appendChild(element('dd', 'mbx-fit__fact-src', fact.src));
           list.appendChild(entry);
         });
         detail.appendChild(list);
@@ -163,9 +168,119 @@
     container.replaceChildren(content);
   }
 
+// The saved profile (chrome.storage.local.profile) when the panel has one; Sarah otherwise. Never blocks.
+let cachedProfile = null;
+try {
+  if (globalThis.chrome?.storage?.local) {
+    const refreshProfile = () => loadProfile().then(p => { if (p) cachedProfile = p; }).catch(() => {});
+    refreshProfile();
+    globalThis.chrome.storage.onChanged?.addListener((changes, area) => {
+      if (area === 'local' && changes && 'profile' in changes) refreshProfile();
+    });
+  }
+} catch { /* no extension storage (tests, scratch pages): Sarah stays the fallback */ }
+
+// Straight-line speeds (km/h) for the estimated commute; always labelled "(est.)".
+const SPEEDS = { walk: 5, cycle: 15, train: 25, bus: 25, 'light rail': 25, tram: 25, ferry: 25, drive: 20 };
+const MODE_ALIASES = { walking: 'walk', foot: 'walk', bike: 'cycle', bicycle: 'cycle', cycling: 'cycle', car: 'drive',
+  driving: 'drive', 'public transport': 'train', transit: 'train', rail: 'train', metro: 'train', lightrail: 'light rail' };
+
+export function commuteMode(profile) {
+  const p = profile || {};
+  const raw = p.transportMode || p.commuteMode || (Array.isArray(p.commute_modes) ? p.commute_modes[0] : null) ||
+    (p.hasCar ? 'drive' : 'train');
+  const mode = String(raw).trim().toLowerCase();
+  const known = MODE_ALIASES[mode] || mode;
+  return SPEEDS[known] ? known : 'train';
+}
+
+export function commuteMinutes(km, mode) {
+  const speed = SPEEDS[mode];
+  return Number.isFinite(km) && km >= 0 && speed ? Math.round(km / speed * 60) : null;
+}
+
+export function shortSource(source) {
+  if (typeof source !== 'string' || !source.trim()) return '';
+  return source.trim().replace(/^[a-z]+:\/\/[^/]+/i, '').replace(/[?#].*$/, '').replace(/^\/v\d+(?=\/)/, '')
+    .replace(/^\/(properties|suburbs)\/[^/]+(?=\/)/, '') || source.trim();
+}
+
+const RENT_SOURCES = [
+  [/rent-history-latest/, 'latest advertised rent'],
+  [/rent-map/, 'mesh-block median rent'],
+  [/median-rent/, 'suburb median rent'],
+];
+
+function transitMode(label) {
+  const text = String(label || '').toLowerCase();
+  if (/light rail|tram/.test(text)) return 'Light rail';
+  if (/ferry|wharf/.test(text)) return 'Ferry';
+  if (/train|station|metro/.test(text)) return 'Train';
+  if (/bus/.test(text)) return 'Bus';
+  return 'Transport';
+}
+
+function signalKm(signal) {
+  const n = signal?.value;
+  if (!Number.isFinite(n)) return null;
+  return signal.unit === 'm' ? n / 1000 : n;
+}
+
+function shortLabel(label) {
+  return String(label || '').replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+}
+
+// One human line plus one grey source line for a scored signal. Only values the data carries are shown.
+export function factLine(signal, profile) {
+  const s = signal || {};
+  const display = typeof s.display === 'string' ? s.display : '';
+  const join = parts => parts.filter(part => part !== null && part !== undefined && part !== '').join(' · ');
+  let main;
+  let sourceNote = '';
+  switch (s.key) {
+    case 'transit_walk':
+      main = join([transitMode(s.label), s.stopName || s.stop_name || s.name, display]);
+      break;
+    case 'work_distance': {
+      const p = profile || SARAH;
+      const mode = commuteMode(p);
+      const minutes = commuteMinutes(signalKm(s), mode);
+      const work = typeof p.workAddress === 'string' && p.workAddress.trim() ? p.workAddress.trim() : '';
+      main = join(['Your destination', work ? `${display} to ${work}` : display,
+        minutes === null ? '' : `~${minutes} min by ${mode} (est.)`]);
+      break;
+    }
+    case 'cbd_distance': main = join(['Town Hall', display]); break;
+    case 'parking': main = join(['Parking', s.value === 0 ? 'none' : display]); break;
+    case 'road_noise': main = join(['Busy road', ['none', 'nearby', 'fronting'][s.value] || display]); break;
+    case 'crime_vs_benchmark': main = join(['Block crime', display]); break;
+    case 'livability_vs_benchmark': main = join(['Livability', display]); break;
+    case 'daily_needs': main = join(['Supermarket, gym, café', display]); break;
+    case 'nightlife': {
+      const within = /within .+$/i.exec(String(s.label || ''));
+      main = join(['Nightlife', within ? `${display} ${shortLabel(within[0])}` : display]);
+      break;
+    }
+    case 'green_space': main = join(['Green space', display]); break;
+    case 'rent_affordability': {
+      const rent = s.inputs?.rentWeekly > 0 ? `$${s.inputs.rentWeekly.toLocaleString('en-AU')}/wk` : '';
+      main = join(['Rent', rent, display === rent ? '' : display]);
+      const hit = RENT_SOURCES.find(([pattern]) => pattern.test(String(s.source || '')));
+      sourceNote = hit ? hit[1] : '';
+      break;
+    }
+    default: {
+      const label = /vacancy/i.test(s.label || '') ? 'Vacancy' : /rates/i.test(s.label || '') ? 'Council rates' : shortLabel(s.label);
+      main = join([label, display]);
+    }
+  }
+  return { main, src: join([sourceNote, shortSource(s.source), s.asOf]) };
+}
+
 // Only reported evidence is shown; unavailable signals do not become placeholder numbers.
-export function summarizeFit(result, trusted = true) {
+export function summarizeFit(result, trusted = true, profile = null) {
   if (!trusted) return { total: null, coverage: { scored: 0, of: 4 }, pillars: [], pros: [], cons: [] };
+  const who = profile || result?.profile || cachedProfile || SARAH;
   const dimensions = result?.dimensions || [];
   const pillars = dimensions.map(dimension => ({
     key: dimension.key,
@@ -178,15 +293,23 @@ export function summarizeFit(result, trusted = true) {
           signal.key === 'work_distance' || signal.key === 'cbd_distance' ? `${signal.display} (straight-line)` : signal.display,
         source: signal.source,
         asOf: signal.asOf,
+        ...factLine(signal, who),
       })),
   }));
-  const itemText = item => [item.label, item.display].filter(Boolean).join(' · ');
+  const signals = dimensions.flatMap(dimension => dimension.signals || []);
+  const full = item => signals.find(signal => signal.key === item.key && signal.dimension === item.dimension) || item;
+  const line = item => { const fact = factLine(full(item), who); return { ...fact, text: fact.main }; };
+  const cons = (result?.failos || []).slice(0, 2);
+  // A rent failo (over 40% of income) is always pinned into Cons, even if the ranking drops it.
+  const rentCon = signals.find(signal => signal.key === 'rent_affordability' && signal.available === true &&
+    (Number.isFinite(signal.score) && signal.score <= 30 || Number.isFinite(signal.value) && signal.value > 40));
+  if (rentCon && !cons.some(item => item.key === 'rent_affordability')) cons.push(rentCon);
   return {
     total: Number.isFinite(result?.fit) ? result.fit : null,
     coverage: { scored: pillars.filter(pillar => pillar.score !== null).length, of: pillars.length },
     pillars,
-    pros: (result?.halos || []).slice(0, 2).map(itemText),
-    cons: (result?.failos || []).slice(0, 2).map(itemText),
+    pros: (result?.halos || []).slice(0, 2).map(line),
+    cons: cons.map(line),
   };
 }
 
@@ -211,7 +334,7 @@ export function renderFit(container, result, options = {}) {
   let identity = null;
   function update(next, opts = {}) {
     const trusted = opts.trusted !== false;
-    const summary = summarizeFit(next, trusted);
+    const summary = summarizeFit(next, trusted, opts.profile || null);
     if (identity !== opts.identity) insights.replaceChildren();
     identity = opts.identity;
     gauge.hidden = !trusted;
