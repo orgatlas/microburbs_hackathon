@@ -131,21 +131,6 @@ button:disabled { cursor: default; opacity: .55; }
   letter-spacing: -.005em;
 }
 
-.mm-mock {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 6px;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  color: var(--mm-meh);
-  font-size: 11px;
-  line-height: 1;
-  font-weight: 600;
-  letter-spacing: .02em;
-  white-space: nowrap;
-}
-
 .mm-gear {
   flex: none;
   margin-left: auto;
@@ -206,6 +191,24 @@ button:disabled { cursor: default; opacity: .55; }
 .mm-state [data-bind="error"] { color: var(--mm-muted); }
 .mm-state > p:last-child { margin-bottom: 0; }
 .mm-state :is([data-bind="message"], [data-bind="error"]):empty { display: none; }
+
+/* Offline: the state is the one line "Backend offline — retry" (the retry is an inline button). */
+#view [data-for="error"][data-code="offline"] > :not([data-bind="error"]) { display: none; }
+#view [data-for="error"][data-code="offline"] > [data-bind="error"] { margin: 0; color: var(--mm-ink); font-weight: 600; }
+.mm-state [data-action="retry"].mm-retry-inline {
+  display: inline;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--mm-accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 
 .mm-state [data-bind="query"] { font-weight: 600; color: var(--mm-ink); overflow-wrap: anywhere; }
 
