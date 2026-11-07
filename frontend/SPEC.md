@@ -31,9 +31,8 @@ Next.js 16 with TypeScript and Tailwind. Read `frontend/AGENTS.md` first, becaus
 
 ### Technical rules
 
-- **Don't create routes under `/api` or `/admin`.** Nginx sends those to Django, so a Next.js route there would silently never run.
 - Call Django from the browser using `NEXT_PUBLIC_API_BASE_URL` and [`src/lib/api.ts`](src/lib/api.ts). Types there follow [the contract](../docs/API_CONTRACT.md).
-- No Microburbs key here, and no static export. Deployment uses `next build` and `next start`, and PM2 sets the port.
+- No Microburbs key here. Hosting isn't decided yet.
 - Don't show realestate.com.au or Domain branding as if they endorse us. Blur or crop listing photos in marketing images.
 
 ## Pitch video: 45 seconds at most

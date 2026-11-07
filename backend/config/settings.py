@@ -129,7 +129,7 @@ MAILERS = {
     },
 }
 
-# --- Static and media: paths match the shared Nginx/Ansible deployment layer ---
+# --- Static and media ---
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"

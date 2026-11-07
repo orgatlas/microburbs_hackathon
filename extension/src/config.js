@@ -1,4 +1,4 @@
-// The one place to point the extension at a proxy. Switch this to the
-// deployed proxy (https://<name>.vercel.app) once it is live. The API key
-// never lives here: it stays on the proxy.
-export const PROXY_URL = 'http://localhost:8787';
+// Change to the deployed URL for the demo, and add it to host_permissions in manifest.json.
+// The Microburbs key never lives in the extension: all data goes through the team backend.
+// The team proxy (proxy/, README Contract 2): GET ${API_BASE}/lookup?address=&work=
+export const API_BASE = "http://localhost:3000";

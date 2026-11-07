@@ -71,11 +71,11 @@ Keep `scoring.py` free of HTTP calls so it can be tested with plain dictionaries
 
 ## 4. Deployment
 
-The extension needs a public backend for judges. This project already fits the shared Ansible layer:
+The extension needs a public backend for judges. Hosting isn't decided yet, so pick the quickest option that gives us an HTTPS URL.
 
-- WSGI path: `config.wsgi:application`
-- No Celery. SQLite is fine because nothing is stored per user.
-- All routes must stay under `/api` or `/admin`.
+- WSGI path: `config.wsgi:application`, run with `gunicorn`
+- SQLite is fine because nothing is stored per user.
+- Set `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS` and `CORS_ALLOWED_ORIGINS` on the host.
 
 ## Done means
 
