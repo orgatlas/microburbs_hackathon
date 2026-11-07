@@ -21,7 +21,6 @@
   -->
   <header class="mm-header">
     <span class="mm-brand" role="heading" aria-level="1">MicroMatch</span>
-    <span class="mm-mock" title="Synthetic numbers from the backend mock, not Microburbs data" hidden>Mock data</span>
     <button type="button" class="mm-gear" data-action="open-onboarding" aria-label="Edit your profile (opens the quiz)" title="Edit your profile (opens the quiz)">
       <!-- Gear: Feather Icons "settings", MIT licence -->
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -29,7 +28,7 @@
   </header>
 
   <!-- Screen-reader announcement of each state change. panel.js sets one short line here,
-       e.g. "Checking 26 Tudor Street…" or "Matched 26 Example Street, Surry Hills. Fit 82 of 100, Halo." -->
+       e.g. "Checking <address>…" or "Matched <address>. Fit <n> of 100." -->
   <p class="mm-sr-only" id="mm-status" data-bind="status" role="status" aria-live="polite" aria-atomic="true"></p>
 
   <main id="view" data-state="empty">
@@ -102,7 +101,7 @@
     <form class="mm-typeit" data-slot="typeit" role="search" aria-label="Check an address">
       <label for="mm-typeit-input">Type the address</label>
       <div class="mm-typeit__row">
-        <input id="mm-typeit-input" name="address" type="text" autocomplete="off" spellcheck="false" placeholder="26 Tudor Street, Surry Hills NSW 2010">
+        <input id="mm-typeit-input" name="address" type="text" autocomplete="off" spellcheck="false" placeholder="Street address and suburb">
         <button type="submit">Check</button>
       </div>
     </form>
