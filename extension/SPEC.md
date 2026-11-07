@@ -13,7 +13,7 @@ The extension reads the address from a listing, asks the backend for a match, an
 | [`onboarding/`](onboarding/) | Bare one-page quiz, opened on install |
 | [`src/config.js`](src/config.js) | API base URL |
 
-Run the backend, load `extension/` unpacked, and open any listing. Mock mode returns the same synthetic home for every address, so don't treat that as a working match. The side panel has not been run in Chrome yet, so test the flow first.
+Run the team proxy (`proxy/`, holds the key, calls api-ht.microburbs.com.au) on localhost:3000, load `extension/` unpacked, and open a listing. The panel shows only live proxy answers (README Contract 2); there is no mock mode. If the proxy is down or too slow the panel says "Backend offline — retry" and shows no numbers. Proof: `node extension/dev/sidepanel-live-proof.mjs --headless` (live check plus an offline check that never touches the running proxy).
 
 ## Rules from the brief
 
@@ -22,7 +22,7 @@ Run the backend, load `extension/` unpacked, and open any listing. Mock mode ret
 
 ## Build order
 
-1. **Prove the flow** in Chrome with mock data: install, quiz, listing, badge, panel.
+1. **Prove the flow** in Chrome on live proxy data: install, quiz, listing, badge, panel.
 2. **Fix address reading** on real listings on both sites. Check houses, units, and pages that hide the address, such as "Address available on request". Those pages should fall back to the typed address box.
 3. **Handle navigation.** Moving between listings must never show the previous home's score. Search result pages should show the empty state.
 4. **Build the real quiz** as one question per screen, rendered from `GET /api/quiz`. Let users retake it from the panel.
@@ -31,7 +31,7 @@ Run the backend, load `extension/` unpacked, and open any listing. Mock mode ret
 
 ## States the panel must handle
 
-Test these with the mock addresses in [the contract](../docs/API_CONTRACT.md#testing-the-states-in-mock-mode).
+Test these on real listings through the live proxy; stop the proxy (or use the proof script's offline check) for the offline state.
 
 | State | What the user sees |
 | --- | --- |
