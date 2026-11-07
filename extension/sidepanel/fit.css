@@ -40,7 +40,7 @@
 .mbx-fit__track::after { content: ''; position: absolute; left: var(--mbx-position); top: 50%; width: 5px; height: 13px; border-radius: 3px; background: var(--mbx-ink); transform: translate(-50%, -50%); box-shadow: 0 0 0 1px var(--mbx-surface); }
 /* fact lines: human line first, grey source + as-of directly under it (dropdown dd and Pros/Cons li) */
 .mbx-fit__fact-main, .mbx-body .mbx-fit__fact-main { display: block; min-width: 0; max-width: 100%; font-size: 13px; line-height: 1.35; color: var(--mbx-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-wrap: pretty; }
-.mbx-fit__fact-src, .mbx-body .mbx-fit__fact-src { display: block; min-width: 0; max-width: 100%; margin: 2px 0 0; font-size: 11px; line-height: 1.3; color: var(--mbx-muted, #62666d); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.mbx-fit__fact-src, .mbx-body .mbx-fit__fact-src { display: none; min-width: 0; max-width: 100%; margin: 2px 0 0; font-size: 11px; line-height: 1.3; color: var(--mbx-muted, #62666d); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 
 
 /* ---------- motion + forced colours ---------- */
@@ -80,5 +80,5 @@
   }
 }
 
-/* Dimension dropdowns show the human fact lines only; sources and as-of stay under Pros and Cons. */
-details.mbx-fit__pillar .mbx-fit__fact-src { display: none; }
+/* Source path and as-of: hidden by default, shown while the pointer is on its row (Pros/Cons item or dropdown fact). */
+li:hover > .mbx-fit__fact-src, .mbx-fit__fact:hover > .mbx-fit__fact-src { display: block; }
