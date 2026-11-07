@@ -707,6 +707,112 @@ function base(status, stored, options) {
   };
 }
 
+// ---------- README Contract 2 (team proxy: GET /lookup) ----------
+// { matched: { gnaf_id, display_name, suburb, confidence, candidates }, facts: { commute|safety|lifestyle|price:
+//   { <signal>: { value, unit, label, source, asOf, available } } }, outsideCoverage, error? }
+// Proxy signal name -> canonical score.js key, with the unit conversion score.js expects.
+const C2_MAP = {
+  commute: {
+    nearestTransport: { key: "transit_walk", value: (v) => Math.round(v * 1000) }, // km -> m
+    workDistance: { key: "work_distance", value: (v) => v }, // km
+    cbdDistance: { key: "cbd_distance", value: (v) => v }, // km
+    parking: { key: "parking", value: (v) => v }, // spaces
+    roadNoise: { key: "road_noise", value: (v) => v }, // 0 none, 1 nearby, 2 fronting
+  },
+  safety: {
+    blockCrime: { key: "crime_vs_benchmark", value: (v) => v, note: "block vs suburb median" }, // %
+    livability: { key: "livability_vs_benchmark", value: (v) => (v > 5 ? 1 : v < -5 ? -1 : 0), note: "points vs regional benchmark; within ±5 points counts as at it" },
+    hazards: { key: "hazards_on_property", value: (v) => v }, // 0 none, 1 nearby only, 2 on property
+    socialHousing: { key: "social_housing", skip: "not scored in this build" },
+  },
+  lifestyle: {
+    dailyAmenities: { key: "daily_needs", value: (v) => Math.max(0, Math.min(3, Math.round(v))), extra: { reportedCount: 3, missing: [] } },
+    nightlife: { key: "nightlife", value: (v) => v }, // venues
+    greenSpace: { key: "green_space", value: (v) => Math.round(v * 1000) }, // km -> m
+  },
+  price: {
+    rentAffordability: { key: "rent_weekly", value: (v) => v }, // AUD/week rent; score.js divides by income
+    buyAffordability: { key: "avm", value: (v) => v }, // AUD
+    comparableValue: { key: "value_vs_comps", value: (v) => v }, // % vs 3 comps
+    runningCosts: { key: "running_costs", skip: "suburb median levy only; no below/at/above comparison yet" },
+    developmentPressure: { key: "development_pressure", skip: "no agreed cut-offs for the construction-change score yet" },
+    negotiatingRoom: { key: "negotiating_room", value: (v) => (v < 1 ? 0 : v <= 3 ? 1 : 2), note: "vacancy under 1% tight, 1-3% mid, over 3% high" }, // %
+  },
+};
+
+function c2Display(key, value, raw) {
+  const sign = (n, d = 1) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(d)}`;
+  const money = (n) => (n >= 1e6 ? `$${(n / 1e6).toFixed(2).replace(/\.?0+$/, "")}m` : n >= 1e4 ? `$${Math.round(n / 1000)}k` : `$${Math.round(n).toLocaleString("en-AU")}`);
+  switch (key) {
+    case "transit_walk": case "green_space": return fmtDistance(value);
+    case "work_distance": case "cbd_distance": return `${value.toFixed(1)} km`;
+    case "parking": return `${value} ${value === 1 ? "space" : "spaces"}`;
+    case "road_noise": return ["no busy road", "busy road nearby", "fronts a busy road"][value] ?? String(raw);
+    case "crime_vs_benchmark": return `${sign(value)}% vs suburb median`;
+    case "livability_vs_benchmark": return `${sign(raw)} pts vs region`;
+    case "hazards_on_property": return ["none mapped", "nearby only", "on the property"][value] ?? String(raw);
+    case "daily_needs": return `${value} of 3 within 800 m`;
+    case "nightlife": return `${value} venues within 800 m`;
+    case "rent_weekly": return `${money(value)}/wk`;
+    case "avm": return money(value);
+    case "value_vs_comps": return `${sign(value)}% vs comps`;
+    case "negotiating_room": return `${raw.toFixed(2)}% vacancy`;
+    default: return String(raw);
+  }
+}
+
+function contract2Facts(facts) {
+  const out = emptyFacts(NOT_PROVIDED);
+  for (const [dim, rules] of Object.entries(C2_MAP)) {
+    const group = facts && typeof facts[dim] === "object" && facts[dim] ? facts[dim] : {};
+    for (const [name, rule] of Object.entries(rules)) {
+      const spec = SIGNALS[dim]?.[rule.key];
+      const src = group[name];
+      if (!spec || !src || typeof src !== "object") continue; // stays "not provided"
+      const common = { label: clean(src.label) || spec.label, source: src.source ? String(src.source) : "proxy" };
+      if (rule.skip) { out[dim][rule.key] = { available: false, ...common, reason: rule.skip }; continue; }
+      const raw = finite(src.value);
+      if (src.available === false || raw === null) {
+        out[dim][rule.key] = { available: false, ...common, reason: src.available === false ? "no data from Microburbs for this home" : `could not read value ${src.value}` };
+        continue;
+      }
+      const value = rule.value(raw);
+      out[dim][rule.key] = {
+        available: true, value, unit: spec.unit, display: c2Display(rule.key, value, raw), ...common,
+        asOf: src.asOf ?? src.as_of ?? null, raw: String(src.value), ...(rule.note ? { note: rule.note } : {}), ...(rule.extra || {}),
+      };
+    }
+  }
+  return out;
+}
+
+function adaptContract2(stored, options) {
+  const err = stored.error && typeof stored.error === "object" ? stored.error : null;
+  const m = stored.matched && typeof stored.matched === "object" ? stored.matched : null;
+  const status = err ? "error" : stored.outsideCoverage === true ? "out_of_area" : !m ? "no_match" : m.gnaf_id ? "matched" : "ambiguous";
+  const out = base(status, stored, options);
+  if (err) { out.code = err.code ?? null; out.message = err.message || out.message; return out; }
+  const candidates = (Array.isArray(m?.candidates) ? m.candidates : [])
+    .filter((c) => c && typeof c === "object")
+    .map((c) => ({ gnaf_id: c.gnaf_id ?? null, display_name: c.display_name ?? c.address ?? null, property_type: c.property_type ?? null }))
+    .filter((c) => c.display_name);
+  out.candidates = candidates;
+  if (status !== "matched") {
+    if (m) out.matched = { gnaf_id: null, display_name: m.display_name ?? null, suburb: m.suburb ?? null, confidence: m.confidence ?? null, candidates };
+    return out;
+  }
+  out.message = null;
+  out.matched = {
+    gnaf_id: m.gnaf_id,
+    display_name: m.display_name ?? null,
+    suburb: m.suburb ?? null,
+    confidence: ["exact", "building", "guess"].includes(m.confidence) ? m.confidence : (m.display_name ? matchConfidence(out.query, m.display_name) : "guess"),
+    candidates,
+  };
+  out.facts = contract2Facts(stored.facts);
+  return out;
+}
+
 /**
  * Backend response (or background placeholder) -> adapter output for score.js and the panel.
  * options.now (Date/ms/ISO) fills fetchedAt when background did not store one.
@@ -714,6 +820,11 @@ function base(status, stored, options) {
 export function adapt(stored, options = {}) {
   if (!stored || typeof stored !== "object") return base("empty", null, options);
   const status = typeof stored.status === "string" ? stored.status : null;
+
+  // The team proxy's README Contract 2 (background marks it contract: 2; detect the bare shape too).
+  if (stored.contract === 2 || (status === null && stored.facts && typeof stored.facts === "object" && ("matched" in stored || "outsideCoverage" in stored))) {
+    return adaptContract2(stored, options);
+  }
 
   if (status === "loading" || status === "need_address" || status === "empty") return base(status, stored, options);
 
