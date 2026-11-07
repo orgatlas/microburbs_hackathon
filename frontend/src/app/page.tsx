@@ -1,8 +1,10 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { BuyerScores } from "@/components/BuyerScores";
 import { Gauge } from "@/components/Gauge";
 import { ScoreBar } from "@/components/ScoreBar";
+import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 const INSTALL_URL = "https://github.com/orgatlas/microburbs_hackathon#run-it";
 
@@ -60,19 +62,6 @@ const SCORE_KEY = [
   { label: "40 to 59 Mixed", className: "bg-gold" },
   { label: "Under 40 Weak", className: "bg-sand" },
 ];
-
-function Logo() {
-  return (
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <path d="M4 15 16 4l12 11" stroke="#a97c12" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M7.5 13v14.5h17V13" stroke="#1f5a41" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path
-        d="M16 23.5s-4.5-2.7-4.5-5.7a2.4 2.4 0 0 1 4.5-1.2 2.4 2.4 0 0 1 4.5 1.2c0 3-4.5 5.7-4.5 5.7Z"
-        fill="#d4a017"
-      />
-    </svg>
-  );
-}
 
 function HouseIllustration() {
   return (
@@ -159,17 +148,7 @@ function HeadsUp({ title, detail, icon }: { title: string; detail: string; icon:
 export default function Home() {
   return (
     <div className="text-lg leading-relaxed">
-      <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 p-6">
-        <a href="#top" className="flex items-center gap-2.5 no-underline">
-          <Logo />
-          <span className="font-display text-2xl font-semibold">MicroMatch</span>
-        </a>
-        <nav aria-label="Main" className="flex flex-wrap items-center gap-6 text-base font-semibold text-forest">
-          <a href="#why" className="hover:text-gold-deep max-sm:hidden">Why MicroMatch</a>
-          <a href="#how" className="hover:text-gold-deep max-sm:hidden">How it works</a>
-          <a href="#get" className={`${GOLD_BUTTON} px-5 py-2.5`}>Get the extension</a>
-        </nav>
-      </header>
+      <SiteHeader />
 
       <main>
         <section id="top" className={`${SPLIT} px-6 pt-12 pb-22`}>
@@ -273,6 +252,9 @@ export default function Home() {
               </span>
             ))}
           </div>
+          <Link href="/how-it-works" className="self-start font-bold text-forest underline hover:text-gold-deep">
+            See the full quiz map and how your score is worked out
+          </Link>
         </section>
 
         <section id="get" className="px-6 pb-22">
@@ -287,10 +269,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="mx-auto flex max-w-6xl flex-wrap justify-between gap-3 px-6 pb-10 text-sm text-muted">
-        <span>MicroMatch, built at the Microburbs Hackathon 2026.</span>
-        <span>Property and suburb data from Microburbs. Scores are a guide, not financial advice.</span>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
