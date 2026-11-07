@@ -34,6 +34,15 @@
         "src/content.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost:3001/*"
+      ],
+      "js": [
+        "src/site-bridge.js"
+      ],
+      "run_at": "document_idle"
     }
   ]
 }

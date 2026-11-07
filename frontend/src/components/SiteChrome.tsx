@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { AccountLink } from "@/components/AccountLink";
+
 const GOLD_BUTTON = "rounded-full bg-gold font-bold text-ink no-underline hover:bg-gold-light";
 
 function Logo() {
@@ -25,6 +27,7 @@ export function SiteHeader() {
       <nav aria-label="Main" className="flex flex-wrap items-center gap-6 text-base font-semibold text-forest">
         <Link href="/#why" className="hover:text-gold-deep max-sm:hidden">Why MicroMatch</Link>
         <Link href="/how-it-works" className="hover:text-gold-deep">How it works</Link>
+        <AccountLink />
         <Link href="/#get" className={`${GOLD_BUTTON} px-5 py-2.5`}>Get the extension</Link>
       </nav>
     </header>

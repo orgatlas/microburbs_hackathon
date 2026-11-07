@@ -16,3 +16,9 @@ node_modules/
 tools/shots/
 .DS_Store
 *.log
+
+# Local accounts database: holds user data, never commit
+backend/db.sqlite3
+backend/.cache/
+__pycache__/
+*.pyc

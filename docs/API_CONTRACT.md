@@ -131,3 +131,17 @@ Errors use a 4xx or 5xx status.
 | `melbourne` | `out_of_area` |
 | `nowhere` | `no_match` |
 | anything else | `matched` |
+
+## Accounts and saved quizzes
+
+The website uses these routes. Local base URL: `http://localhost:8001/api`. Send `Authorization: Bearer <token>` on every route except register and login.
+
+| Route | Body | Returns |
+| --- | --- | --- |
+| `POST /auth/register` | `name`, `email`, `password` | `token`, `user` |
+| `POST /auth/login` | `email`, `password` | `token`, `user` |
+| `POST /auth/logout` | none | `status` |
+| `GET /me` | none | `user`, `latest_quiz`, `history` |
+| `POST /quiz-results` | `answers`, `weights`, `categories`, `archetype`, `details`, `extension_profile` | the saved result |
+
+Each retake adds a new result, and the newest one is the live profile. After saving, the website posts `extension_profile` (README Contract 1) to `extension/src/site-bridge.js`, which writes it to `chrome.storage.local`. Logging out clears it.

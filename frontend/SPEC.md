@@ -2,6 +2,18 @@
 
 The website explains MicroMatch and gets people to install it. It also gives judges a way to try the product without the extension. The videos are scored deliverables, so they come before website polish.
 
+## Run it
+
+The website runs on port 3001, because the proxy uses 3000. Django runs on 8001.
+
+```bash
+cd backend && .venv/bin/python manage.py migrate && .venv/bin/python manage.py runserver 8001
+```
+
+```bash
+cd frontend && npm run dev
+```
+
 ## Priorities
 
 1. `pitch.mp4`: an AI pass uses this to pick the top 25 teams

@@ -44,7 +44,7 @@ const ANSWERS = [
 const STEPS = [
   {
     title: "Add it to Chrome",
-    detail: "Then take a short quiz about your budget, your household and what you love.",
+    detail: "Then create your account and take a short quiz about your budget, your household and what you love.",
   },
   {
     title: "Browse like you always do",
@@ -261,10 +261,15 @@ export default function Home() {
           <div className="mx-auto flex max-w-6xl flex-col items-center gap-4.5 rounded-[28px] bg-butter p-9 text-center md:p-16">
             <h2 className={HEADING}>Your next home is out there.</h2>
             <p className="max-w-xl text-body">
-              Bring a friend along for the search. We only ever read the address of the home you&apos;re
-              viewing, and there&apos;s no account to create.
+              Bring a friend along for the search. Create your free account, take the quiz, and retake it
+              whenever life changes. We only ever read the address of the home you&apos;re viewing.
             </p>
-            <a href={INSTALL_URL} className={`${GOLD_BUTTON} px-7 py-3.5`}>Get the Chrome extension</a>
+            <div className="flex flex-wrap justify-center gap-3">
+              <a href={INSTALL_URL} className={`${GOLD_BUTTON} px-7 py-3.5`}>Get the Chrome extension</a>
+              <Link href="/login" className="rounded-full border-2 border-forest px-6 py-3 font-bold text-forest hover:bg-paper">
+                Create your account
+              </Link>
+            </div>
           </div>
         </section>
       </main>

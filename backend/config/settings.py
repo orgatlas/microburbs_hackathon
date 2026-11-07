@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'matching',
+    'accounts',
 ]
 
 MIDDLEWARE = [
@@ -141,7 +142,7 @@ STORAGES = {
 
 # --- CORS: the website calls this API from the browser. The extension's service
 # worker uses host_permissions, but extension pages may send an Origin too. ---
-CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS") or ["http://localhost:3000"]
+CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS") or ["http://localhost:3001"]
 CORS_ALLOWED_ORIGIN_REGEXES = [r"^chrome-extension://[a-p]{32}$"]
 
 # --- Cached Microburbs responses, so repeat listings do not burn the 10 req/s limit ---
