@@ -19,8 +19,9 @@ function notJson(detail) {
   return { ok: false, message: 'The proxy answered with something that is not JSON.', detail: String(detail || '') };
 }
 
-async function lookup(address) {
-  const url = PROXY_URL + '/lookup?address=' + encodeURIComponent(address);
+async function lookup(address, work) {
+  let url = PROXY_URL + '/lookup?address=' + encodeURIComponent(address);
+  if (work) url += '&work=' + encodeURIComponent(work);
   let res;
   try {
     res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
@@ -53,15 +54,42 @@ async function lookup(address) {
   return { ok: true, httpStatus: res.status, blob };
 }
 
+// Panel template + stylesheet, read once from the extension's own files (no web_accessible_resources needed:
+// the worker runs on the extension origin). A failed read is not cached, so the next ask retries.
+let assetsPromise = null;
+async function readAsset(path) {
+  const res = await fetch(chrome.runtime.getURL(path));
+  if (!res.ok) throw new Error(path + ': HTTP ' + res.status);
+  return res.text();
+}
+function getAssets() {
+  if (!assetsPromise) {
+    assetsPromise = Promise.all([readAsset('panel/panel.html'), readAsset('panel/panel.css')])
+      .then(([html, css]) => ({ ok: true, html, css }))
+      .catch((err) => {
+        assetsPromise = null;
+        return { ok: false, message: 'Could not read the panel files.', detail: String((err && err.message) || err) };
+      });
+  }
+  return assetsPromise;
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!sender || sender.id !== chrome.runtime.id) return false;
-  if (!msg || msg.type !== 'MBX_LOOKUP') return false;
+  if (!msg) return false;
+  if (msg.type === 'MBX_ASSETS') {
+    getAssets().then(sendResponse);
+    return true;
+  }
+  if (msg.type !== 'MBX_LOOKUP') return false;
   const address = typeof msg.address === 'string' ? msg.address.trim().slice(0, MAX_ADDRESS_CHARS) : '';
+  // The workplace address is the only profile field that leaves the browser (to place the commute).
+  const work = typeof msg.work === 'string' ? msg.work.replace(/\s+/g, ' ').trim().slice(0, MAX_ADDRESS_CHARS) : '';
   if (!address) {
     sendResponse({ ok: false, message: 'No address to look up.', detail: '' });
     return false;
   }
-  lookup(address)
+  lookup(address, work)
     .then(sendResponse)
     .catch((err) => sendResponse(unreachable(err && err.message ? err.message : err)));
   return true; // keep the channel open for the async answer
