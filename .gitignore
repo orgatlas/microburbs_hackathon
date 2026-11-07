@@ -22,3 +22,9 @@ backend/db.sqlite3
 backend/.cache/
 __pycache__/
 *.pyc
+
+# --- audio sources (voiceover takes, music stems): the mixed demo.mp4 is the hand-in ---
+*.mp3
+*.wav
+*.m4a
+tools/audio/
