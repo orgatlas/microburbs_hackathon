@@ -1,10 +1,515 @@
-body { font: 14px/1.45 system-ui, sans-serif; margin: 16px; color: #1b1b1b; }
-h1 { font-size: 16px; margin: 0 0 12px; }
-.score { font-size: 48px; font-weight: 700; line-height: 1; }
-.pillar { border-top: 1px solid #e5e5e5; padding: 10px 0; }
-.pillar summary { cursor: pointer; font-weight: 600; }
-.factor { margin: 8px 0 0; }
-.muted { color: #666; }
-button.candidate { display: block; width: 100%; text-align: left; margin: 4px 0; padding: 8px; }
-#manual { margin-top: 16px; border-top: 1px solid #e5e5e5; padding-top: 12px; }
-#manual input { width: 100%; box-sizing: border-box; padding: 6px; margin: 4px 0; }
+/* MicroMatch side panel: page shell, states, matched-address block, type-it box, notices, footer.
+   Components (.mm-speedo, .mm-halo, .mm-slider, .mm-profile) inject their own CSS; nothing here styles their internals.
+
+   Optional hooks panel.js can use (all degrade to neutral styling if absent):
+   - p.mm-addr__confidence[data-confidence="exact" | "building" | "guess"]  -> tinted tag; the words come from panel.js
+   - candidate rows: [data-slot="candidates"] / [data-slot="ambiguous-list"] > li > button
+       a second line inside the button: <small> or .mm-cand__meta; current match: aria-current="true"
+   - notices: li.mm-notice[data-kind="dealbreaker" | "warning" | "gap"]  (or ul.mm-dealbreakers / ul.mm-gaps > li)
+       optional word tag <strong class="mm-notice__tag">Dealbreaker</strong>; without one, CSS prefixes the word
+   - loading skeleton: .mm-skeleton > .mm-skel (+ .mm-skel--gauge | --title | --short | --row)
+   - utilities: .mm-label, .mm-muted, .mm-btn, .mm-sr-only */
+
+:root {
+  --mm-ink: #18191b;
+  --mm-muted: #62666d;
+  --mm-hairline: rgba(0, 0, 0, .08);
+  --mm-bg: #fff;
+  --mm-accent: #009485;
+  --mm-accent-tint: #ecf8f6;
+  --mm-halo: #00806f;
+  --mm-halo-tint: #e6f4f1;
+  --mm-meh: #9a6a00;
+  --mm-meh-tint: #fff5db;
+  --mm-failo: #b42318;
+  --mm-failo-tint: #fdecea;
+  --mm-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mm-radius: 10px;
+
+  /* Derived, used by this file only. Darkened so small text and the white-on-teal button pass WCAG AA. */
+  --mm-accent-strong: color-mix(in srgb, var(--mm-accent) 82%, #000);
+  --mm-line: rgba(0, 0, 0, .16);
+  --mm-press: rgba(0, 0, 0, .045);
+  --mm-gutter: 16px;
+  color-scheme: light;
+}
+
+/* ---------- base ---------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--mm-bg);
+  color: var(--mm-ink);
+  font: 13px/1.45 var(--mm-font);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .55; }
+
+:focus-visible { outline: 2px solid var(--mm-accent); outline-offset: 2px; }
+::selection { background: var(--mm-accent-tint); }
+
+.mm-label {
+  margin: 0 0 4px;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--mm-muted);
+}
+
+.mm-muted { color: var(--mm-muted); }
+
+.mm-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- header ---------- */
+
+.mm-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px var(--mm-gutter);
+  background: var(--mm-bg);
+  border-bottom: 1px solid var(--mm-hairline);
+}
+
+.mm-brand {
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -.005em;
+}
+
+.mm-mock {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  color: var(--mm-meh);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+.mm-gear {
+  flex: none;
+  margin-left: auto;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--mm-muted);
+  transition: background-color .12s, color .12s;
+}
+.mm-gear:hover { background: var(--mm-press); color: var(--mm-ink); }
+.mm-gear:active { background: var(--mm-hairline); }
+.mm-gear:focus-visible { outline: 2px solid var(--mm-accent); outline-offset: 1px; color: var(--mm-ink); }
+.mm-gear svg { display: block; width: 18px; height: 18px; }
+
+/* ---------- view + state switching ---------- */
+
+#view {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--mm-gutter) 20px;
+}
+
+/* Only the section whose data-for matches #view[data-state] is shown. */
+#view > [data-for] { display: none; }
+
+#view[data-state="empty"] > [data-for="empty"],
+#view[data-state="loading"] > [data-for="loading"],
+#view[data-state="need_address"] > [data-for="need_address"],
+#view[data-state="matched"] > [data-for="matched"],
+#view[data-state="ambiguous"] > [data-for="ambiguous"],
+#view[data-state="no_match"] > [data-for="no_match"],
+#view[data-state="out_of_area"] > [data-for="out_of_area"],
+#view[data-state="error"] > [data-for="error"] { display: block; }
+
+/* The type-it box shows in every state except loading. */
+#view[data-state="loading"] > .mm-typeit { display: none; }
+
+/* ---------- message states ---------- */
+
+.mm-state { padding: 20px 0 0; }
+
+.mm-state > :is(h2, h3) {
+  margin: 0 0 4px;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.mm-state > p { margin: 0 0 8px; }
+.mm-state > :is(h2, h3) ~ p,
+.mm-state [data-bind="message"],
+.mm-state [data-bind="error"] { color: var(--mm-muted); }
+.mm-state > p:last-child { margin-bottom: 0; }
+.mm-state :is([data-bind="message"], [data-bind="error"]):empty { display: none; }
+
+.mm-state [data-bind="query"] { font-weight: 600; color: var(--mm-ink); overflow-wrap: anywhere; }
+
+/* Secondary button: error retry and any other plain action. */
+.mm-btn,
+.mm-state [data-action="retry"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  margin-top: 12px;
+  padding: 0 14px;
+  border: 1px solid var(--mm-line);
+  border-radius: 8px;
+  background: var(--mm-bg);
+  color: var(--mm-ink);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color .12s;
+}
+.mm-btn:hover,
+.mm-state [data-action="retry"]:hover { background: var(--mm-press); }
+
+/* ---------- loading skeleton ---------- */
+
+.mm-skeleton {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.mm-skel,
+.mm-skeleton > * {
+  position: relative;
+  display: block;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--mm-hairline);
+}
+.mm-skel--title { height: 14px; width: 72%; }
+.mm-skel--short { width: 45%; }
+.mm-skel--row { height: 30px; border-radius: 8px; }
+.mm-skel--gauge {
+  width: 180px;
+  max-width: 100%;
+  height: 90px;
+  margin: 6px auto 8px;
+  border-radius: 90px 90px 0 0;
+}
+
+.mm-skel::after,
+.mm-skeleton > *::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .65), transparent);
+  animation: mm-shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes mm-shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* ---------- matched result ---------- */
+
+.mm-result > section { padding: 14px 0; }
+.mm-result > section + section { border-top: 1px solid var(--mm-hairline); }
+.mm-result > section:empty { display: none; }
+
+/* Matched-address block */
+.mm-addr { padding-top: 16px; }
+
+.mm-addr h2 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mm-addr__query {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--mm-muted);
+  overflow-wrap: anywhere;
+}
+.mm-addr__query:empty { display: none; }
+
+.mm-addr__confidence {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  margin: 8px 10px 0 0;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--mm-press);
+  color: var(--mm-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.mm-addr__confidence:empty { display: none; }
+.mm-addr__confidence[data-confidence="exact"] {
+  background: var(--mm-halo-tint);
+  color: color-mix(in srgb, var(--mm-halo) 80%, #000);
+}
+.mm-addr__confidence[data-confidence="building"] {
+  background: var(--mm-meh-tint);
+  color: color-mix(in srgb, var(--mm-meh) 80%, #000);
+}
+.mm-addr__confidence[data-confidence="guess"] {
+  background: var(--mm-failo-tint);
+  color: var(--mm-failo);
+}
+
+/* Text-style button ("Not this one?") */
+.mm-linkbtn {
+  display: inline;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mm-accent-strong);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  vertical-align: middle;
+}
+.mm-linkbtn:hover { color: var(--mm-ink); }
+.mm-linkbtn:focus-visible { outline-offset: 2px; border-radius: 2px; }
+
+/* Candidate lists: "Not this one?" picker and the ambiguous state */
+.mm-picker { margin-top: 10px; }
+.mm-picker > p { margin: 0 0 6px; font-size: 12px; color: var(--mm-muted); }
+
+:is([data-slot="candidates"], [data-slot="ambiguous-list"]) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--mm-hairline);
+  border-radius: var(--mm-radius);
+  overflow: hidden;
+}
+[data-slot="ambiguous-list"] { margin-top: 12px; }
+:is([data-slot="candidates"], [data-slot="ambiguous-list"]):empty { display: none; }
+
+:is([data-slot="candidates"], [data-slot="ambiguous-list"]) > li { margin: 0; }
+:is([data-slot="candidates"], [data-slot="ambiguous-list"]) > li + li { border-top: 1px solid var(--mm-hairline); }
+
+:is([data-slot="candidates"], [data-slot="ambiguous-list"]) > li > :is(button, a) {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--mm-ink);
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: background-color .12s;
+}
+:is([data-slot="candidates"], [data-slot="ambiguous-list"]) > li > :is(button, a):hover { background: var(--mm-accent-tint); }
+:is([data-slot="candidates"], [data-slot="ambiguous-list"]) > li > :is(button, a):focus-visible {
+  outline: 2px solid var(--mm-accent);
+  outline-offset: -2px;
+}
+:is([data-slot="candidates"], [data-slot="ambiguous-list"]) > li > [aria-current="true"] {
+  background: var(--mm-accent-tint);
+  font-weight: 600;
+}
+:is([data-slot="candidates"], [data-slot="ambiguous-list"]) :is(small, .mm-cand__meta) {
+  display: block;
+  margin-top: 1px;
+  color: var(--mm-muted);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+/* Speedo + verdict (the speedo's internals are speedo.js's) */
+.mm-score { padding-top: 16px; }
+.mm-score [data-slot="speedo"] { display: flex; justify-content: center; }
+
+.mm-verdict {
+  max-width: 40ch;
+  margin: 10px auto 0;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 500;
+  text-align: center;
+  text-wrap: balance;
+}
+.mm-verdict:empty { display: none; }
+
+/* ---------- notices: backend dealbreakers + data gaps ---------- */
+
+[data-slot="notices"] { display: grid; gap: 10px; }
+[data-slot="notices"] :is(ul, ol) { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+[data-slot="notices"] p { margin: 0; }
+
+:is(.mm-notice, .mm-dealbreakers > li, .mm-gaps > li) {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+:is(.mm-notice[data-kind="dealbreaker"], .mm-dealbreakers > li) { color: var(--mm-failo); }
+.mm-notice[data-kind="warning"] { color: color-mix(in srgb, var(--mm-meh) 80%, #000); }
+
+/* Word tag before each dealbreaker / warning. Never colour alone: if panel.js sends no
+   .mm-notice__tag, CSS adds the word as an identical tag. */
+.mm-notice__tag,
+:is(.mm-notice[data-kind="dealbreaker"], .mm-dealbreakers > li, .mm-notice[data-kind="warning"]):not(:has(.mm-notice__tag))::before {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  vertical-align: 1px;
+}
+:is(.mm-notice[data-kind="dealbreaker"], .mm-dealbreakers > li):not(:has(.mm-notice__tag))::before { content: "Dealbreaker"; }
+.mm-notice[data-kind="warning"]:not(:has(.mm-notice__tag))::before { content: "Check"; }
+
+[data-slot="notices"] .mm-gaps { gap: 2px; }
+
+:is(.mm-notice[data-kind="gap"], .mm-gaps > li) {
+  position: relative;
+  padding-left: 12px;
+  color: var(--mm-muted);
+}
+:is(.mm-notice[data-kind="gap"], .mm-gaps > li)::before {
+  content: "\2013";
+  position: absolute;
+  left: 0;
+}
+
+/* ---------- type-it box ---------- */
+
+.mm-typeit { margin: 16px 0 0; }
+
+/* Under a matched result it is the fallback, so it sits behind a hairline. */
+#view[data-state="matched"] > .mm-typeit {
+  margin-top: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--mm-hairline);
+}
+
+.mm-typeit label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.mm-typeit__row { display: flex; gap: 6px; }
+
+.mm-typeit input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--mm-line);
+  border-radius: 8px;
+  background: var(--mm-bg);
+  font-size: 13px;
+  text-overflow: ellipsis;
+}
+.mm-typeit input::placeholder { color: var(--mm-muted); opacity: .75; }
+.mm-typeit input:focus-visible { outline: 2px solid var(--mm-accent); outline-offset: -1px; border-color: transparent; }
+
+.mm-typeit button {
+  flex: none;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--mm-accent-strong);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color .12s;
+}
+.mm-typeit button:hover { background: color-mix(in srgb, var(--mm-accent) 68%, #000); }
+
+/* ---------- footer ---------- */
+
+.mm-foot {
+  margin-top: auto;
+  padding: 12px var(--mm-gutter) 14px;
+  border-top: 1px solid var(--mm-hairline);
+  color: var(--mm-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* ---------- motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-skel::after,
+  .mm-skeleton > *::after { animation: none; display: none; }
+  .mm-gear,
+  .mm-btn,
+  .mm-state [data-action="retry"],
+  .mm-typeit button,
+  :is([data-slot="candidates"], [data-slot="ambiguous-list"]) > li > :is(button, a) { transition: none; }
+}
+
+/* ---------- integrator additions: property facts line, not-scored list ---------- */
+.mm-addr__facts { margin: 2px 0 0; font-size: 12px; color: var(--mm-muted, #62666d); font-variant-numeric: tabular-nums; }
+.mm-addr__facts:empty { display: none; }
+.mm-missing { font-size: 12px; color: var(--mm-muted, #62666d); }
+.mm-missing > summary { cursor: pointer; }
+.mm-missing > summary:focus-visible { outline: 2px solid var(--mm-accent, #009485); outline-offset: 2px; border-radius: 4px; }
+.mm-missing > ul { margin-top: 6px; }
+[data-for="no_match"] > ul:empty { display: none; }
