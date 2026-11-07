@@ -869,13 +869,18 @@ test('commute display names the matched workplace, not just "work"', () => {
   assert.match(dim(run(noName, sarah()), 'commute').fact.display, / to work\b/);
 });
 
-test('meter verdict: one-sided wording and no echoed words', () => {
-  const meter = require('../extension/panel/meter.js');
-  const H = { key: 'affordability', kind: 'halo', label: 'Affordable', number: '$165/wk · 28% of income' };
-  const F = { key: 'quiet', kind: 'failo', label: 'Busy road nearby', number: 'Busy road 59 m (primary)' };
-  const C = { key: 'safety', kind: 'failo', label: 'Higher crime', number: 'Crime 3.1x national · 1.0x suburb' };
-  assert.equal(meter.verdict({ halos: [H], failos: [], total: 80, band: 'halo' }), 'No failos. Strongest: affordable ($165/wk · 28% of income).');
-  assert.equal(meter.verdict({ halos: [], failos: [C], total: 30, band: 'failo' }), 'No halos. Main concern: higher crime (3.1x national · 1.0x suburb).');
-  assert.equal(meter.verdict({ halos: [H], failos: [F], total: 60, band: 'meh' }), 'Affordable ($165/wk · 28% of income), but busy road nearby: 59 m (primary).');
-  assert.equal(meter.verdict({ halos: [], failos: [], total: null }), 'Not enough data to score this home yet.');
+test('panel fit uses the visible pillars and leaves uncertain or missing evidence unrated', () => {
+  require('../extension/panel/insights.js');
+  const { summarize } = globalThis.MBX.insights;
+  const profile = sarah();
+  const scoreResult = run(HALO, profile);
+  const original = summarize(scoreResult, HALO, profile, true);
+  assert.deepEqual(original.pillars.map(pillar => pillar.label), ['Commute', 'Safety', 'Lifestyle', 'Price']);
+  assert.deepEqual(original.coverage, { scored: 4, of: 4 });
+  const differentVacancy = { ...HALO, vacancy: { block_pct: 0.1 } };
+  assert.equal(summarize(run(differentVacancy, profile), differentVacancy, profile, true).total, original.total);
+  assert.equal(summarize(scoreResult, HALO, profile, false).total, null);
+  const missing = summarize(run({}, profile), {}, profile, true);
+  assert.equal(missing.total, null);
+  assert.ok(missing.pillars.every(pillar => pillar.score === null));
 });

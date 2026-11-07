@@ -23,7 +23,7 @@
         "src/extract.js",
         "panel/score.js",
         "panel/meter.js",
-        "panel/halos.js",
+        "panel/insights.js",
         "panel/profile.js",
         "src/panel.js",
         "src/content.js"

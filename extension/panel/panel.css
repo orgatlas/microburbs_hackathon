@@ -5,8 +5,8 @@
  *
  * Owns: the design tokens (defined on .mbx-body), the address header, the picker and
  * type-it form, the slots around the components, and the footer.
- * Does NOT style .mbx-meter, .mbx-halos__* or .mbx-profile internals: those components
- * ship their own CSS. Slots give them a 328px content box (360px minus 16px each side).
+ * The profile editor ships its own CSS. The result content fits a 328px content box
+ * (360px minus 16px each side).
  *
  * Resets use :where() (zero specificity) so any component rule wins over them,
  * whatever order the sheets are adopted in.
@@ -28,6 +28,9 @@
   --mbx-meh-tint: #fff5db;
   --mbx-failo: #b42318;
   --mbx-failo-tint: #fdecea;
+  --mbx-spectrum-low: #e27470;
+  --mbx-spectrum-mid: #edbd64;
+  --mbx-spectrum-high: #44ae91;
   --mbx-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mbx-radius: 10px;
 
@@ -77,20 +80,20 @@
 
 .mbx-addr,
 .mbx-score,
-.mbx-halos-slot,
+.mbx-insights-slot,
 .mbx-profile-slot {
   display: block;
   padding: 12px 16px 14px;
 }
 
 .mbx-body > section + section,
-.mbx-halos-slot,
+.mbx-insights-slot,
 .mbx-profile-slot {
   border-top: 1px solid var(--mbx-hairline, rgba(0, 0, 0, .08));
 }
 
 /* a slot the integrator has not filled yet takes no space */
-.mbx-halos-slot:empty,
+.mbx-insights-slot:empty,
 .mbx-profile-slot:empty {
   display: none;
 }
@@ -384,13 +387,14 @@
   cursor: default;
 }
 
-/* ---------- score: meter + verdict ---------- */
+/* ---------- score and fit pillars ---------- */
 
 .mbx-score {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 14px 16px 16px;
+  gap: 6px;
+  padding: 13px 16px 12px;
   text-align: center;
 }
 
@@ -405,25 +409,38 @@
   display: none;
 }
 
-.mbx-verdict {
-  max-width: 300px;
-  margin-top: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.4;
-  color: var(--mbx-ink, #18191b);
-  text-align: center;
-  text-wrap: balance;
-  overflow-wrap: break-word;
-}
-
-.mbx-meter-slot:empty + .mbx-verdict {
-  margin-top: 0;
-}
-
-.mbx-verdict:empty {
-  display: none;
-}
+.mbx-meter { display: grid; justify-items: center; gap: 3px; width: 100%; }
+.mbx-meter__gauge { display: block; width: min(194px, 100%); height: auto; }
+.mbx-meter__needle { fill: var(--mbx-ink); transform-box: view-box; transform-origin: 108px 99px; }
+.mbx-meter__readout { font-size: 13px; color: var(--mbx-muted); }
+.mbx-meter__value { font-size: 32px; line-height: 1; font-weight: 650; color: var(--mbx-ink); }
+.mbx-meter__note, .mbx-confirm-match, .mbx-fit__muted { font-size: 12px; color: var(--mbx-muted); }
+.mbx-meter__note:empty { display: none; }
+.mbx-confirm-match { padding: 10px 16px; border-top: 1px solid var(--mbx-hairline); }
+.mbx-fit__columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-bottom: 12px; }
+.mbx-fit__column + .mbx-fit__column { border-left: 1px solid var(--mbx-hairline); padding-left: 12px; }
+.mbx-fit__columns h3, .mbx-fit__pillar h3 { font-size: 13px; font-weight: 650; margin: 0; }
+.mbx-fit__column ul { display: grid; gap: 4px; margin-top: 5px; font-size: 12px; }
+.mbx-fit__column li { padding-left: 14px; position: relative; overflow-wrap: anywhere; }
+.mbx-fit__column li::before { content: '+'; position: absolute; left: 0; font-weight: 700; color: var(--mbx-halo); }
+.mbx-fit__column + .mbx-fit__column li::before { content: '−'; color: var(--mbx-failo); }
+.mbx-fit__pillars { display: grid; gap: 10px; }
+.mbx-fit__columns + .mbx-fit__pillars { padding-top: 11px; border-top: 1px solid var(--mbx-hairline); }
+.mbx-fit__pillar { border-bottom: 1px solid var(--mbx-hairline); padding-bottom: 10px; }
+.mbx-fit__pillar:last-child { border-bottom: 0; padding-bottom: 0; }
+.mbx-fit__toggle { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; padding: 4px 0; cursor: pointer; list-style: none; border-radius: 3px; }
+.mbx-fit__toggle::-webkit-details-marker { display: none; }
+.mbx-fit__toggle:focus-visible { outline: 2px solid var(--mbx-accent); outline-offset: 4px; }
+.mbx-fit__title { font-size: 13px; font-weight: 650; }
+.mbx-fit__chevron { width: 6px; height: 6px; margin-right: 3px; border-bottom: 1.5px solid var(--mbx-muted); border-right: 1.5px solid var(--mbx-muted); transform: rotate(45deg); }
+.mbx-fit__pillar[open] .mbx-fit__chevron { transform: rotate(225deg); }
+.mbx-fit__toggle > .mbx-fit__track, .mbx-fit__toggle > .mbx-fit__muted { grid-column: 1 / -1; }
+.mbx-fit__detail { padding-top: 9px; }
+.mbx-fit__facts { display: grid; gap: 10px; margin: 0; padding: 10px 12px; border-radius: 6px; background: #f6f8f7; }
+.mbx-fit__fact dt { font-size: 11px; color: var(--mbx-muted); }
+.mbx-fit__fact dd { font-size: 12px; margin: 2px 0 0; overflow-wrap: anywhere; }
+.mbx-fit__track { position: relative; height: 7px; border-radius: 6px; margin: 2px 3px; background: linear-gradient(to right, var(--mbx-spectrum-low), var(--mbx-spectrum-mid) 48%, var(--mbx-spectrum-high)); }
+.mbx-fit__track::after { content: ''; position: absolute; left: var(--mbx-position); top: 50%; width: 5px; height: 13px; border-radius: 3px; background: var(--mbx-ink); transform: translate(-50%, -50%); box-shadow: 0 0 0 1px #fff; }
 
 /* ---------- footer ---------- */
 
@@ -451,6 +468,7 @@
 /* ---------- motion + forced colours ---------- */
 
 @media (prefers-reduced-motion: no-preference) {
+  .mbx-meter__needle { transition: transform .42s ease; }
   .mbx-picker__item,
   .mbx-btn,
   .mbx-typeit__input {
@@ -465,6 +483,10 @@
 }
 
 @media (forced-colors: active) {
+  .mbx-meter__arc { stroke: GrayText; }
+  .mbx-meter__needle { fill: CanvasText; }
+  .mbx-fit__track { background: GrayText; }
+  .mbx-fit__track::after { background: CanvasText; }
   .mbx-addr__check--exact,
   .mbx-addr__check--partial,
   .mbx-addr__check--weak {

@@ -12,9 +12,9 @@ globalThis.MBX = globalThis.MBX || {};
  *             | { kind: 'result', address, source, blob, score?, profile? }
  *               blob = proxy /lookup body (blob.facts when status ok); score = MBX.score.scoreListing(blob.facts, profile),
  *               computed by content.js so income and budget never leave the browser.
- *   updateScore(score, profile) re-draws meter, verdict, halos/failos, profile and pill in place (no re-mount, no lookup).
+ *   updateScore(score, profile) refreshes the fit, evidence, profile and pill in place.
  * The result:ok body is panel/panel.html's #mbx-result-template, styled by panel/panel.css plus the components' own CSS
- * (meter.js, halos.js, profile.js), all adopted as constructable stylesheets. background.js reads both files (MBX_ASSETS).
+ * (profile.js), adopted as constructable stylesheets. background.js reads both files (MBX_ASSETS).
  * Renders into an open shadow root on <div id="mbx-root">. DOM is built with createElement + textContent only;
  * the one HTML parse is of our own panel.html template: nothing from the page or the API is ever parsed as HTML.
  */
@@ -26,7 +26,6 @@ globalThis.MBX = globalThis.MBX || {};
   var DASH = '–';
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   var SOURCE_LABELS = { 'json-ld': 'JSON-LD', h1: 'page heading', title: 'page title', typed: 'your input', picked: 'your pick' };
-  var BAND_WORDS = { halo: 'Halo', meh: 'Meh', failo: 'Failo' };
   var PLACEHOLDER = 'e.g. 26 Tudor Street, Surry Hills NSW 2010';
 
   var CSS = [
@@ -357,7 +356,7 @@ globalThis.MBX = globalThis.MBX || {};
         var tpl = doc.getElementById('mbx-result-template');
         var first = tpl && tpl.content && tpl.content.firstElementChild;
         if (!first) throw new Error('The panel template is missing.');
-        var parts = [String(res.css || ''), cssOf('meter'), cssOf('halos'), cssOf('profile')];
+        var parts = [String(res.css || ''), cssOf('profile')];
         var sheets = [];
         parts.forEach(function (t) { var sh = sheetFrom(t); if (sh) sheets.push(sh); });
         assets = { tpl: first, sheets: sheets.length === parts.length ? sheets : null, cssText: parts.join('\n') };
@@ -547,8 +546,6 @@ globalThis.MBX = globalThis.MBX || {};
 
     /* ----- result:ok view (panel/panel.html template) ----- */
 
-    function bandWord(b) { return BAND_WORDS[b] || null; }
-
     function checkInfo(m, blob) {
       var check = m.check || null;
       var notes = check && Array.isArray(check.notes) ? check.notes.filter(isStr) : [];
@@ -557,8 +554,7 @@ globalThis.MBX = globalThis.MBX || {};
       if (check && isStr(check.verdict)) {
         kind = check.verdict === 'exact' || check.verdict === 'partial' ? check.verdict : 'weak';
         if (kind === 'exact') {
-          var allAgree = check.number !== false && check.street === true && check.suburb === true;
-          head = 'Exact match' + (allAgree ? ' · ' + (check.number === true ? 'number, street and suburb agree' : 'street and suburb agree') : '');
+          head = 'Exact match';
         } else if (kind === 'partial') head = 'Close match: check the unit/number';
         else head = 'Weak match: check this is the right home';
       }
@@ -571,78 +567,42 @@ globalThis.MBX = globalThis.MBX || {};
         var outside = before.length && before.every(function (c) { return c && c.in_coverage === false; });
         notes.push('skipped ' + k + ' higher-ranked result' + (k === 1 ? '' : 's') + (outside ? ' outside the City of Sydney' : ''));
       }
-      var text = [head].concat(notes).filter(isStr).join(' · ');
+      var text = kind === 'exact' ? head : [head].concat(notes.slice(0, 1)).filter(isStr).join(' · ');
       return { kind: kind, text: text };
     }
 
-    function scoreAttrs(el, sc, profile) {
+    function scoreAttrs(el, sc, profile, fit) {
       var mode = sc && isStr(sc.mode) ? sc.mode
         : (profile && profile.budget && isStr(profile.budget.mode) ? profile.budget.mode : '');
-      el.setAttribute('data-total', sc && isNum(sc.total) ? String(Math.round(sc.total)) : '');
-      el.setAttribute('data-band', sc && isStr(sc.band) ? sc.band : '');
+      el.setAttribute('data-total', fit && isNum(fit.total) ? String(fit.total) : '');
       el.setAttribute('data-blank', sc && Array.isArray(sc.blank) ? sc.blank.join(',') : '');
       el.setAttribute('data-mode', mode);
     }
-    function meterProps(sc) {
-      return {
-        total: sc && isNum(sc.total) ? sc.total : null,
-        band: sc && isStr(sc.band) ? sc.band : null,
-        coverage: sc && sc.coverage ? sc.coverage : { scored: 0, of: 6 }
-      };
-    }
-    function verdictText(sc) {
-      if (!MBX.meter || typeof MBX.meter.verdict !== 'function') return '';
-      return MBX.meter.verdict({
-        halos: sc && Array.isArray(sc.halos) ? sc.halos : [],
-        failos: sc && Array.isArray(sc.failos) ? sc.failos : [],
-        total: sc && isNum(sc.total) ? sc.total : null,
-        band: sc && isStr(sc.band) ? sc.band : null
-      });
-    }
-    // Middle-band dimensions as halo-style items (label = dimension name), picked first, then score desc.
-    function mehItems(sc) {
-      if (!sc || !Array.isArray(sc.dimensions)) return [];
-      return sc.dimensions
-        .filter(function (d) { return d && d.band === 'meh' && isNum(d.score); })
-        .sort(function (a, b) { return (b.picked === true) - (a.picked === true) || b.score - a.score; })
-        .map(function (d) {
-          return {
-            key: d.key, kind: 'meh', label: isStr(d.label) ? d.label : d.key,
-            number: d.fact && isStr(d.fact.display) ? d.fact.display : null, score: d.score,
-            via: Array.isArray(d.via) ? d.via : [], as_of: isStr(d.as_of) ? d.as_of : null, picked: d.picked === true
-          };
-        });
-    }
-    function halosProps(sc) {
-      return {
-        halos: sc && Array.isArray(sc.halos) ? sc.halos : [],
-        failos: sc && Array.isArray(sc.failos) ? sc.failos : [],
-        meh: mehItems(sc),
-        // {key, reason} per blank dimension, so the panel says why ("Set a budget or income").
-        blank: sc && Array.isArray(sc.dimensions)
-          ? sc.dimensions.filter(function (d) { return d && d.score === null && isStr(d.key); })
-              .map(function (d) { return { key: d.key, reason: isStr(d.blank_reason) ? d.blank_reason : null }; })
-          : (sc && Array.isArray(sc.blank) ? sc.blank : []),
-        fetched_at: live ? live.fetchedAt : null
-      };
-    }
     function warn(what, e) { console.warn('[Listing Check] ' + what + ' could not render', e); }
 
+    function renderFit(s, blob) {
+      var match = live.el.getAttribute('data-check');
+      var trusted = match !== 'partial' && match !== 'weak';
+      var fit = MBX.insights.summarize(s.score, blob.facts, s.profile, trusted, blob.sections);
+      live.fit = fit;
+      scoreAttrs(live.el, s.score, s.profile, fit);
+      live.gauge.hidden = !trusted;
+      live.confirm.hidden = trusted;
+      if (trusted) {
+        if (live.meter) live.meter.update(fit);
+        else live.meter = MBX.meter.render(live.meterSlot, fit);
+      }
+      MBX.insights.render(live.insights, fit);
+    }
+
     function mountScore(el, s, blob) {
-      var sc = s.score || null;
-      var facts = blob.facts && typeof blob.facts === 'object' ? blob.facts : null;
-      var meterSlot = el.querySelector('[data-slot="meter"]');
-      var halosSlot = el.querySelector('[data-slot="halos"]');
       var profileSlot = el.querySelector('[data-slot="profile"]');
       live = {
-        el: el, meter: null, halos: null, profile: null,
-        verdict: el.querySelector('[data-slot="verdict"]'),
-        fetchedAt: (facts && isStr(facts.fetched_at) ? facts.fetched_at : null) || (isStr(blob.fetched_at) ? blob.fetched_at : null)
+        el: el, meter: null, profile: null, fit: null,
+        gauge: el.querySelector('.mbx-score'), confirm: el.querySelector('[data-slot="confirm-match"]'),
+        meterSlot: el.querySelector('[data-slot="meter"]'), insights: el.querySelector('[data-slot="insights"]')
       };
-      scoreAttrs(el, sc, s.profile);
-      try { if (MBX.meter && meterSlot) live.meter = MBX.meter.render(meterSlot, meterProps(sc)); } catch (e) { warn('meter', e); }
-      try { if (live.verdict) live.verdict.textContent = verdictText(sc); } catch (e) { warn('verdict', e); }
-      try { if (MBX.halos && halosSlot) live.halos = MBX.halos.render(halosSlot, halosProps(sc)); } catch (e) { warn('halos', e); }
+      try { renderFit(s, blob); } catch (e) { warn('fit summary', e); }
       try {
         if (MBX.profile && profileSlot && s.profile) {
           live.profile = MBX.profile.render(profileSlot, s.profile, { onSave: function (p) { call('onProfileSave', p); } });
@@ -660,8 +620,8 @@ globalThis.MBX = globalThis.MBX || {};
       var nameEl = q('[data-bind="display_name"]');
       if (nameEl) nameEl.textContent = isStr(m.display_name) ? m.display_name : DASH;
       var lineEl = q('[data-bind="listing_line"]');
-      if (lineEl) lineEl.textContent = listing ? 'Listing: ' + listing + (src ? ' · from ' + src : '') : '';
       var ci = checkInfo(m, blob);
+      if (lineEl && ci.kind !== 'exact') lineEl.textContent = listing ? 'Listing: ' + listing + (src ? ' · from ' + src : '') : '';
       var checkEl = q('[data-bind="check"]');
       if (checkEl) {
         checkEl.textContent = ci.text;
@@ -727,10 +687,7 @@ globalThis.MBX = globalThis.MBX || {};
       if (current.kind !== 'result' || !current.blob || current.blob.status !== 'ok') return;
       current = Object.assign({}, current, { score: score || null, profile: profile || current.profile || null });
       if (!live) { render(); return; }
-      scoreAttrs(live.el, current.score, current.profile);
-      try { if (live.meter) live.meter.update(meterProps(current.score)); } catch (e) { warn('meter', e); }
-      try { if (live.verdict) live.verdict.textContent = verdictText(current.score); } catch (e) { warn('verdict', e); }
-      try { if (live.halos) live.halos.update(halosProps(current.score)); } catch (e) { warn('halos', e); }
+      try { renderFit(current, current.blob); } catch (e) { warn('fit summary', e); }
       try { if (live.profile && profile) live.profile.update(profile); } catch (e) { warn('profile', e); }
       renderPill();
       status.textContent = statusText(current);
@@ -838,9 +795,8 @@ globalThis.MBX = globalThis.MBX || {};
     }
 
     function compactValue() {
-      var b = current.kind === 'result' ? current.blob : null;
-      var sc = b && b.status === 'ok' ? current.score : null;
-      if (sc && isNum(sc.total)) return String(Math.round(sc.total)) + (bandWord(sc.band) ? ' ' + bandWord(sc.band) : '');
+      var fit = live && live.fit;
+      if (fit && isNum(fit.total)) return String(fit.total);
       return null;
     }
 

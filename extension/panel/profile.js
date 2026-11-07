@@ -26,8 +26,7 @@ globalThis.MBX = globalThis.MBX || {};
     { key: 'close_to_work', label: 'Close to work' },
     { key: 'safe', label: 'Safe' },
     { key: 'lively', label: 'Lively' },
-    { key: 'quiet', label: 'Quiet' },
-    { key: 'negotiable', label: 'Negotiable' }
+    { key: 'quiet', label: 'Quiet' }
   ];
   var LABELS = Object.create(null);
   PRIORITIES.forEach(function (p) { LABELS[p.key] = p.label; });
@@ -558,7 +557,7 @@ globalThis.MBX = globalThis.MBX || {};
         form.setAttribute('data-mode', mode);
       }
 
-      // priorities: six toggle chips, at most three on
+      // Select up to three priorities from the factors used by the panel.
       var prio = el('fieldset', 'mbx-profile__field');
       var legend = el('legend', 'mbx-profile__label', 'Priorities');
       prio.appendChild(legend);
