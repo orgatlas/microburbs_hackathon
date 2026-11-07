@@ -17,7 +17,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { scoreListing, scoreSignal, bandFor } from "./score.js";
-import { adapt, readFactor, classifyFactor, parseDistanceM } from "./adapter.js";
+import { adapt } from "./adapter.js";
 import { normalizeProfile } from "./profile.js";
 
 // ---------------------------------------------------------------- helpers
@@ -48,7 +48,6 @@ function listing(facts = {}, over = {}) {
   return {
     status: "matched",
     query: "105/8 Sam Sing Street, Waterloo NSW 2017",
-    mock: true,
     fetchedAt: "2026-11-07T01:45:00.000Z",
     message: null,
     matched: {
@@ -660,59 +659,35 @@ describe("(7) bandFor", () => {
   });
 });
 
-// ---------------------------------------------------------------- (9) adapter.js on the backend's own shape
-// These run the REAL path the panel runs: a POST /api/match body (backend/matching/mock.py, synthetic
-// numbers) -> adapt() -> scoreListing(). The fixtures above are hand-built adapter output; these are not.
+// ---------------------------------------------------------------- (9) adapter.js on README Contract 2
+// These run the REAL path the panel runs: a proxy GET /lookup answer (README Contract 2) -> adapt() ->
+// scoreListing(). TEST DATA ONLY: every value below is invented for these tests (the address, the
+// gnaf_id and every number); none is copied from the live Microburbs API or the proxy.
 
-const mf = (key, label, value, source, detail = "") => ({ key, label, value, score: 50, impact: "neutral", detail, source });
-function mockMatched() {
+const sig = (value, extra = {}) => ({ value, unit: "test-unit", label: "Test signal", source: "test:source", asOf: "2026-01-01", available: true, ...extra });
+function c2(facts = {}, over = {}) {
   return {
-    status: "matched", mock: true, query: "17 Young Street, Redfern NSW 2016",
-    property: {
-      gnaf_id: "GANSW000000000", address: "26 Example Street, Surry Hills", suburb: "Surry Hills",
-      dwelling_type: "house", bed_count: 3, bath_count: 2, parking_count: 1, land_area_sqm: 120.0,
-    },
-    match: {
-      overall: 82, label: "Strong match", summary: "Fits your budget and your walkable lifestyle. Flood risk is the one to check.",
-      pillars: [
-        { key: "lifestyle", label: "Lifestyle & Community", score: 91, weight: 0.4, factors: [
-          mf("transport", "Train", "450 m", "/v1/properties/{gnaf_id}/transport/nearby"),
-          mf("amenities", "Supermarket", "240 m", "/v1/properties/{gnaf_id}/amenities/nearby"),
-        ] },
-        { key: "price", label: "Price", score: 78, weight: 0.35, factors: [
-          mf("avm_vs_budget", "Estimated value", "$1.24M", "/v1/properties/{gnaf_id}/valuation/avm", "About $60k under your $1.3M limit. The likely range is $1.18M to $1.31M."),
-        ] },
-        { key: "safety", label: "Safety", score: 72, weight: 0.25, factors: [
-          mf("crime", "Crime vs national", "+4%", "/v1/suburbs/{suburb_name}/crime/summary"),
-          mf("flood", "Flood overlay", "120 m away", "/v1/properties/{gnaf_id}/risks/all", "Not on the property, but the nearest overlay is 120 m away."),
-        ] },
-      ],
-      dealbreakers: [],
-    },
-    data_gaps: [],
+    contract: 2,
+    query: "7 Fixture Lane, Testville NSW 2999",
+    matched: { gnaf_id: "GATEST000000001", display_name: "7 Fixture Lane, Testville", suburb: "Testville", confidence: "exact", candidates: [] },
+    facts: { commute: {}, safety: {}, lifestyle: {}, price: {}, ...facts },
+    outsideCoverage: false,
+    ...over,
   };
 }
-// The rent factor the backend is asked to add (backend/SPEC.md has no rent endpoint yet). Pins the contract:
-// key "rent", a "$/wk" display value, and a numeric raw value with its unit and as-of date.
-const RENT_FACTOR = {
-  key: "rent", label: "Latest rent advert", value: "$650/wk",
-  raw: { value: 650, unit: "AUD/week", as_of: "2026-10-12" },
-  source: "/v1/properties/{gnaf_id}/rent-history-latest",
-};
-// docs/API_CONTRACT.md request example: the quiz-shape profile.
-const QUIZ_EXAMPLE = {
-  version: 1, buyer_type: "first_home", budget_max: 1300000, household: "couple", min_bedrooms: 2,
-  vibe: "buzzing", commute_modes: ["train", "bus"], must_haves: ["supermarket", "restaurant"],
-  weights: { lifestyle: 40, price: 35, safety: 25 },
-};
 
-describe("(9) adapter.js -> score.js on the backend mock shape", () => {
-  test("Sarah on the mock: fit 60 meh, parking the only halo, no failos", () => {
-    // commute: transit 450 m -> 50 (w1), parking 1 -> 100 (w0.5) -> (50 + 50) / 1.5 = 66.7 -> 67
-    // safety: crime +4% -> 50, flood 120 m away (level 1) -> 50 -> 50
-    // lifestyle: daily needs 1 of 3 with gym and café unreported -> not scored; price: no rent -> not scored
+describe("(9) adapter.js -> score.js on a synthetic README Contract 2 answer", () => {
+  test("matched exact: Sarah, fit 60 meh, parking the only halo, no failos", () => {
+    // commute: transit 0.45 km -> 450 m -> 50 (w1), parking 1 -> 100 (w0.5) -> (50 + 50) / 1.5 = 66.7 -> 67
+    // safety: block crime +4% -> 50; lifestyle and price: nothing available -> not scored
     // fit = (0.35 * 66.7 + 0.25 * 50) / 0.60 = 59.7 -> 60
-    const r = scoreListing(adapt(mockMatched()), sarah());
+    const adapted = adapt(c2({ commute: { nearestTransport: sig(0.45), parking: sig(1) }, safety: { blockCrime: sig(4) } }));
+    assert.equal(adapted.status, "matched");
+    assert.equal(adapted.matched.confidence, "exact");
+    assert.equal(adapted.matched.gnaf_id, "GATEST000000001");
+    assert.equal(adapted.matched.display_name, "7 Fixture Lane, Testville");
+    assert.equal("mock" in adapted, false);
+    const r = scoreListing(adapted, sarah());
     assert.equal(r.fit, 60);
     assert.equal(r.band, "meh");
     assert.deepEqual(r.halos.map((h) => h.key), ["parking"]);
@@ -720,72 +695,79 @@ describe("(9) adapter.js -> score.js on the backend mock shape", () => {
     assert.deepEqual(r.dimensions.map((d) => d.score), [67, 50, null, null]);
   });
 
-  test("the pinned rent factor reaches rent affordability with its value, source and as-of", () => {
-    // 650 / 600 = 1.083 > 0.40 -> 0, so price = 0
-    // fit = (0.35 * 66.7 + 0.25 * 50 + 0.25 * 0) / 0.85 = 42.2 -> 42
-    const body = mockMatched();
-    body.match.pillars[1].factors.push(RENT_FACTOR);
-    const adapted = adapt(body);
-    const rent = adapted.facts.price.rent_weekly;
-    assert.equal(rent.available, true);
-    assert.equal(rent.value, 650);
-    assert.equal(rent.asOf, "2026-10-12");
-    assert.equal(rent.source, "/v1/properties/{gnaf_id}/rent-history-latest");
+  test("confidence missing from the proxy is computed from the query", () => {
+    const body = c2();
+    delete body.matched.confidence;
+    assert.equal(adapt(body).matched.confidence, "exact");
+    body.matched.display_name = "9 Other Road, Testville";
+    assert.equal(adapt(body).matched.confidence, "guess");
+  });
+
+  test("unit conversions: km -> m, vacancy levels, livability band, daily needs reportedCount", () => {
+    const facts = (over) => adapt(c2(over)).facts;
+    const f = facts({ commute: { nearestTransport: sig(0.45), workDistance: sig(3.2) }, lifestyle: { greenSpace: sig(1.2), dailyAmenities: sig(2) } });
+    assert.equal(f.commute.transit_walk.value, 450);
+    assert.equal(f.commute.transit_walk.display, "450 m");
+    assert.equal(f.commute.work_distance.value, 3.2);
+    assert.equal(f.lifestyle.green_space.value, 1200);
+    assert.equal(f.lifestyle.green_space.display, "1.2 km");
+    assert.equal(f.lifestyle.daily_needs.value, 2);
+    assert.equal(f.lifestyle.daily_needs.reportedCount, 3);
+    assert.deepEqual(f.lifestyle.daily_needs.missing, []);
+    assert.equal(f.lifestyle.daily_needs.display, "2 of 3 within 800 m");
+    assert.equal(facts({ lifestyle: { dailyAmenities: sig(7) } }).lifestyle.daily_needs.value, 3); // clamped to 0..3
+    // vacancy: under 1% tight (0), 1-3% mid (1), over 3% high (2)
+    const vac = (v) => facts({ price: { negotiatingRoom: sig(v) } }).price.negotiating_room.value;
+    assert.deepEqual([0.5, 1, 3, 3.5].map(vac), [0, 1, 1, 2]);
+    // livability: within ±5 points of the benchmark counts as at it
+    const liv = (v) => facts({ safety: { livability: sig(v) } }).safety.livability_vs_benchmark.value;
+    assert.deepEqual([8, 5, 0, -5, -6].map(liv), [1, 0, 0, 0, -1]);
+  });
+
+  test("unavailable and skipped signals are never scored as zero", () => {
+    const adapted = adapt(c2({
+      commute: { nearestTransport: sig(null, { available: false }) },
+      safety: { socialHousing: sig(1) },
+      price: { runningCosts: sig(1000), developmentPressure: sig(2), rentAffordability: sig("n/a") },
+    }));
+    const f = adapted.facts;
+    assert.equal(f.commute.transit_walk.available, false);
+    assert.equal(f.commute.transit_walk.reason, "no data from Microburbs for this home");
+    assert.equal(f.safety.social_housing.available, false);
+    assert.equal(f.price.running_costs.available, false);
+    assert.equal(f.price.development_pressure.available, false);
+    assert.equal(f.price.rent_weekly.available, false);
+    assert.equal(f.commute.cbd_distance.available, false); // absent from the answer: not provided
     const r = scoreListing(adapted, sarah());
-    assert.equal(dim(r, "price").score, 0);
-    assert.equal(r.fit, 42);
-    assert.deepEqual(r.failos.map((f) => f.key), ["rent_affordability"]);
-    assert.equal(r.failos[0].asOf, "2026-10-12");
+    assert.equal(r.fit, null);
+    assert.ok(r.missing.length > 0);
   });
 
-  test("the API_CONTRACT quiz example: buying, $1.24M of $1.3M is a halo, fit 69", () => {
-    // weights 0.25 / 0.1875 / 0.30 / 0.2625 (profile.js); hasCar false (no car in commute_modes) -> parking not counted
-    // commute 50, safety 50, lifestyle not scored, price: 1.24 / 1.30 = 0.954 <= 1 -> 100
-    // fit = (0.25 * 50 + 0.1875 * 50 + 0.2625 * 100) / 0.70 = 68.75 -> 69
-    const r = scoreListing(adapt(mockMatched()), normalizeProfile(QUIZ_EXAMPLE));
-    assert.equal(r.fit, 69);
-    assert.deepEqual(r.halos.map((h) => h.key), ["buy_affordability"]);
+  test("outsideCoverage -> out_of_area; matched null -> no_match; error -> error", () => {
+    const out = adapt({ contract: 2, matched: null, facts: {}, outsideCoverage: true });
+    assert.equal(out.status, "out_of_area");
+    assert.equal(adapt({ matched: null, facts: {}, outsideCoverage: true }).status, "out_of_area"); // bare shape
+    assert.equal(adapt(c2({}, { matched: null })).status, "no_match");
+    const err = adapt(c2({}, { matched: null, error: { code: "upstream_429", message: "Test error message" } }));
+    assert.equal(err.status, "error");
+    assert.equal(err.code, "upstream_429");
+    assert.equal(err.message, "Test error message");
+    for (const a of [out, err]) assert.equal(scoreListing(a, sarah()).fit, null);
   });
 
-  test("thousands separators: '1,200 m' is 1.2 km, not 1.2 m; nearest of two stops wins", () => {
-    assert.equal(parseDistanceM("1,200 m"), 1200);
-    assert.equal(parseDistanceM("1,2 km"), 1200);
-    assert.equal(parseDistanceM("450 m"), 450);
-    const body = mockMatched();
-    body.match.pillars[0].factors = [mf("transport", "Train", "1,200 m", "/t"), mf("transport", "Bus", "650 m", "/t")];
-    const transit = adapt(body).facts.commute.transit_walk;
-    assert.equal(transit.value, 650);
-    assert.equal(scoreSignal("commute", "transit_walk", transit, sarah()).score, 50);
-    assert.equal(scoreSignal("commute", "transit_walk", { ...transit, value: 1200 }, sarah()).score, 0);
+  test("background's offline record is an error with no facts", () => {
+    const a = adapt({ status: "error", code: "offline", message: "Backend offline" });
+    assert.equal(a.status, "error");
+    assert.equal(a.code, "offline");
+    assert.equal(a.message, "Backend offline");
+    assert.equal(scoreListing(a, sarah()).fit, null);
   });
 
-  test("a generic 'amenities' key with a specific label goes where the label says", () => {
-    assert.equal(classifyFactor({ key: "amenities", label: "Park" }), "green_space");
-    assert.equal(classifyFactor({ key: "amenities", label: "Pub" }), "nightlife");
-    assert.equal(classifyFactor({ key: "amenities", label: "Supermarket" }), "daily_needs");
-    const body = mockMatched();
-    body.match.pillars[0].factors.push(mf("amenities", "Park", "300 m", "/a"), mf("amenities", "Restaurants", "12 nearby", "/a"));
-    const adapted = adapt(body);
-    assert.equal(adapted.facts.lifestyle.green_space.value, 300);
-    assert.ok(adapted.extras.some((e) => e.label === "Restaurants"), "an unusable amenities factor is kept in extras, not dropped");
-  });
-
-  test("market yields are not weekly rent", () => {
-    assert.equal(classifyFactor({ key: "market", label: "Rental yield" }), null);
-    assert.equal(classifyFactor({ key: "yield", label: "Gross rental yield" }), null);
-    assert.equal(classifyFactor({ key: "rent", label: "Latest rent advert" }), "rent_weekly");
-  });
-
-  test("'none within 1 km' is a park beyond 1 km (scores 0); 'no data' stays unscored", () => {
-    const none = readFactor("green_space", { value: "none within 1 km" });
-    assert.equal(none.value, 1001);
-    assert.equal(scoreSignal("lifestyle", "green_space", { available: true, ...none, label: "park", source: "s", asOf: null }, sarah()).score, 0);
-    assert.ok(readFactor("green_space", { value: "no data" }).error);
-  });
-
-  test("livability as 'score vs benchmark' reads as above / below", () => {
-    assert.equal(readFactor("livability_vs_benchmark", { value: "72 vs 65 regional" }).value, 1);
-    assert.equal(readFactor("livability_vs_benchmark", { value: "60 vs 65" }).value, -1);
-    assert.equal(readFactor("livability_vs_benchmark", { value: "66 vs 65" }).value, 0);
+  test("any other shape (an old backend or mock answer) is an error, never data", () => {
+    const a = adapt({ status: "matched", property: { gnaf_id: "GATEST000000002", address: "1 Old Shape Street" }, match: { overall: 99, pillars: [] } });
+    assert.equal(a.status, "error");
+    assert.equal(a.message, "Unexpected answer from the proxy");
+    assert.equal(a.matched, null);
+    assert.equal(scoreListing(a, sarah()).fit, null);
   });
 });
