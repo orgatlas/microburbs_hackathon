@@ -10,8 +10,8 @@
 // dotted key, e.g. missing["crime.rate"] = "mesh_block_not_in_crime_map". getFacts never throws.
 //
 // createProfileFacts({ client, ttlMs, now }) -> { getFacts({ gnafId, suburb, propertyType, workAddress }) }
-//   client.get(path, query) -> Promise<{ status, body, requestId }> (proxy/src/client-live.js or client-mock.js,
-//   which already rate-limit and back off on 429).
+//   client.get(path, query) -> Promise<{ status, body, requestId }>, a live Microburbs client that already
+//   rate-limits and backs off on 429.
 //   now() may return a Date or epoch milliseconds.
 //
 // Caches (TTL ttlMs, in-flight calls de-duplicated): property endpoints by gnaf_id, suburb datasets by suburb
