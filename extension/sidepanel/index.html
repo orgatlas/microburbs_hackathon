@@ -16,7 +16,9 @@
     Hooks:  [data-bind]   text set by panel.js: status, query, message, error, address, listing, confidence, asof
             [data-slot]   containers panel.js fills or hands to a component: ambiguous-list, candidates, fit,
                           notices, profile, typeit (the form)
-            [data-action] open-onboarding, retry, not-this-one
+            [data-action] open-onboarding, open-quiz (no profile saved: opens the website quiz), retry, not-this-one
+    No default persona: without chrome.storage.local.profile the matched state shows the address and
+    "Take the quiz to see your fit", never a score.
     Only the listing's address is read from the page. The Microburbs key never reaches the extension.
   -->
   <header class="mm-header">
