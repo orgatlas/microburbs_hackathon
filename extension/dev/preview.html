@@ -46,6 +46,7 @@
         var state = F.states[key] || F.states.ok;
         if (state.address) lastAddress = state.address;
         panel = MBX.createPanel({
+          shadowMode: 'open', // dev preview: tools/preview-shots.mjs reads the shadow root
           onSubmitAddress: function (text) {
             console.log('[preview] onSubmitAddress', text);
             lastAddress = text;
