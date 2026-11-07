@@ -13,15 +13,10 @@
 export const DIMENSIONS = Object.freeze(["commute", "safety", "lifestyle", "price"]);
 export const DIMENSION_LABELS = Object.freeze({ commute: "Commute", safety: "Safety", lifestyle: "Lifestyle", price: "Price" });
 
-/* README Contract 1 default, verbatim. */
-export const DEFAULT_PROFILE = Object.freeze({
-  name: "Sarah",
-  mode: "rent",
-  budgetWeekly: 250,
-  incomeWeekly: 600,
-  workAddress: "Broadway, Ultimo NSW",
-  weights: Object.freeze({ commute: 0.35, safety: 0.25, lifestyle: 0.15, price: 0.25 }),
-});
+/* No default persona: without a profile there is no budget, income or work address, so the signals
+   that need them are skipped and the four dimensions weigh equally. The panel never shows a fit
+   without the user's own profile ("Take the quiz" instead); this only keeps scoreListing() total. */
+const NO_PROFILE = Object.freeze({ mode: "rent", weights: Object.freeze({ commute: 0.25, safety: 0.25, lifestyle: 0.25, price: 0.25 }) });
 
 /* Speedo bands for the fit, consistent with the halo >= 70 / failo <= 30 signal rule. */
 export const BANDS = Object.freeze({
@@ -248,12 +243,12 @@ function quizWeights(w) {
 }
 
 /*
- * Accepts README Contract 1, the backend quiz shape (converted: true) or nothing (Sarah).
+ * Accepts README Contract 1, the backend quiz shape (converted: true) or nothing (equal weights, no persona).
  * Idempotent: normalizeProfile(normalizeProfile(p)) deep-equals normalizeProfile(p).
  */
 export function normalizeProfile(input) {
   const p = isObj(input) ? input : null;
-  if (!p) return { ...DEFAULT_PROFILE, weights: { ...DEFAULT_PROFILE.weights } };
+  if (!p) return { ...NO_PROFILE, weights: { ...NO_PROFILE.weights } };
   const out = {};
   if (isQuizShape(p)) {
     if (str(p.name)) out.name = str(p.name);
