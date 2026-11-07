@@ -156,6 +156,3 @@ CACHES = {
 # --- Microburbs. The key lives here only: never in the extension or website. ---
 MICROBURBS_BASE_URL = os.environ.get("MICROBURBS_BASE_URL", "https://api-ht.microburbs.com.au")
 MICROBURBS_API_KEY = os.environ.get("MICROBURBS_API_KEY", "")
-# Mock mode returns the synthetic contract response so the extension and website
-# can be built before the real scoring lands.
-MATCH_MOCK = os.environ.get("MATCH_MOCK", "True") == "True"
