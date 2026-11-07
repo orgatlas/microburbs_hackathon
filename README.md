@@ -111,7 +111,7 @@ The quiz sets `weights`; it may also set flags like `hasCar` and `nightlife` tha
 | Teammate 2 | `proxy/`, `tests/` | `/lookup` returns Contract 2 with as many signals as the spec supports, matcher handles "105/8", "Unit 105, 8", "Level 3", "8–10"; e2e on 3 rental + 3 sale listings; `tests/findings.md` |
 | Teammate 3 | `extension/onboarding/`, `docs/SCORING.md` quiz section | Six MCQs → profile JSON (Contract 1); "I'm Sarah" one-tap preset |
 
-Until the proxy is live, the panel runs on `proxy/fixtures/lookup.sample.json`, which must match Contract 2 exactly.
+The panel reads only the live proxy (`GET http://localhost:3000/lookup`, which calls api-ht.microburbs.com.au with the key). There is no mock mode and no fixture at runtime; if the proxy is down the panel says "Backend offline — retry".
 
 ### Git protocol
 - `git pull --rebase` then `git push` **every 20 minutes**, on the hour, :20 and :40. The repo is the submission; a laptop dying at 14:50 must not cost the entry.
