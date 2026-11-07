@@ -26,7 +26,8 @@ def env_list(name):
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-not-for-production")
+# A blank value in the hackathon .env must not disable the development fallback.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or "dev-only-not-for-production"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
@@ -144,6 +145,7 @@ STORAGES = {
 # worker uses host_permissions, but extension pages may send an Origin too. ---
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS") or ["http://localhost:3001"]
 CORS_ALLOWED_ORIGIN_REGEXES = [r"^chrome-extension://[a-p]{32}$"]
+CORS_ALLOW_ALL_ORIGINS = True  # Hackathon: allow the locally loaded extension.
 
 # --- Cached Microburbs responses, so repeat listings do not burn the 10 req/s limit ---
 CACHES = {
