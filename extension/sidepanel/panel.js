@@ -1,70 +1,371 @@
-// TODO(Hrithik): this is the bare flow. Design the real panel on top of it.
+// MicroMatch side panel controller. Reads the tab's record from chrome.storage.session ("tab:<id>",
+// written by src/background.js), adapts it (adapter.js), scores it for the profile (score.js) and
+// hands the pieces to the components. It never talks to the network and never reads the listing page:
+// background.js holds the only backend call, and the content script sends only the address.
+// Tests can pin the panel to a tab with ?tabId=<id>; otherwise it follows the active tab.
+import { adapt } from "./adapter.js";
+import { scoreListing } from "./score.js";
+import { renderSpeedo, verdictSentence } from "./speedo.js";
+import { renderHalos } from "./halos.js";
+import { renderSliders } from "./sliders.js";
+import { loadProfile, openOnboarding, renderProfile } from "./profile.js";
+
+const STATES = new Set(["empty", "loading", "need_address", "matched", "ambiguous", "no_match", "out_of_area", "error"]);
+const BAND_WORD = { halo: "Halo", meh: "Meh", failo: "Failo" };
+// background.js gives up on a fetch after 25 s; a "checking" record older than this has lost its worker.
+const STALL_MS = 30000;
+const BASICS_SOURCE = "Microburbs /v1/properties/{gnaf_id}/basics/all";
+const CONFIDENCE_TEXT = {
+  exact: "Exact match: number, street and suburb agree with the listing",
+  building: "Same building: the unit number is missing or differs",
+  guess: "Best guess: this address differs from the listing, check it",
+};
+
 const view = document.getElementById("view");
+const mockBadge = document.querySelector(".mm-mock");
+const picker = document.getElementById("mm-picker");
+const pickerToggle = document.querySelector('[data-action="not-this-one"]');
+const form = document.querySelector('form[data-slot="typeit"]');
+const input = document.getElementById("mm-typeit-input");
 
-async function activeTabId() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tab?.id;
+const pinnedTabId = (() => {
+  const raw = new URLSearchParams(location.search).get("tabId");
+  const id = raw === null ? NaN : Number(raw);
+  return Number.isInteger(id) && id >= 0 ? id : null;
+})();
+
+let tabId = pinnedTabId;
+let stored = null;
+let userPick = null; // background's "pick:<id>": the address the user typed or picked for this page
+let profile = null;
+let refreshSeq = 0;
+let stallTimer = null;
+const typed = new Set(); // addresses typed into the box this session, so the listing line can say so
+const handles = { speedo: null, halos: null, sliders: null, profile: null };
+
+// ---------- small DOM helpers (textContent only, never innerHTML with data) ----------
+
+const slot = (name) => document.querySelector(`[data-slot="${name}"]`);
+function bind(name, text) {
+  for (const node of document.querySelectorAll(`[data-bind="${name}"]`)) node.textContent = text ?? "";
 }
-
-function element(tag, className, text) {
+function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value === null || value === undefined || value === false) continue;
+    if (key === "className") node.className = value;
+    else if (key === "dataset") Object.assign(node.dataset, value);
+    else node.setAttribute(key, value === true ? "" : String(value));
+  }
+  for (const child of children) {
+    if (child === null || child === undefined || child === false) continue;
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
   return node;
 }
+const norm = (text) => String(text || "").toLowerCase().replace(/[^a-z0-9/]+/g, " ").trim();
+const send = (message) => {
+  try {
+    return chrome.runtime.sendMessage(message).catch(() => {});
+  } catch {
+    return Promise.resolve();
+  }
+};
 
-function renderMatched(result) {
-  view.append(
-    element("div", "muted", `Matched: ${result.property.address}`),
-    element("div", "score", result.match.overall),
-    element("div", "", result.match.label),
-    element("p", "muted", result.match.summary),
+// ---------- tab + data ----------
+
+async function resolveTabId() {
+  if (pinnedTabId !== null) return pinnedTabId;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return Number.isInteger(tab?.id) ? tab.id : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readRecord(id) {
+  if (id === null) return { record: null, pick: null };
+  try {
+    const got = await chrome.storage.session.get([`tab:${id}`, `pick:${id}`]);
+    return { record: got[`tab:${id}`] ?? null, pick: got[`pick:${id}`] ?? null };
+  } catch {
+    return { record: null, pick: null };
+  }
+}
+
+async function refresh() {
+  const seq = ++refreshSeq;
+  const id = await resolveTabId();
+  const [{ record, pick: savedPick }, prof] = await Promise.all([readRecord(id), loadProfile()]);
+  if (seq !== refreshSeq) return; // a newer refresh started meanwhile
+  tabId = id;
+  stored = record;
+  userPick = savedPick;
+  profile = prof;
+  render();
+}
+
+// ---------- rendering ----------
+
+function setState(state) {
+  if (view.dataset.state !== state) {
+    view.dataset.state = state;
+    closePicker();
+  }
+}
+
+function candidateList(list, candidates, currentId) {
+  list.replaceChildren(
+    ...candidates.map((c) => {
+      const button = el(
+        "button",
+        { type: "button", className: "mm-cand", "aria-current": c.gnaf_id && c.gnaf_id === currentId ? "true" : null },
+        c.display_name || c.address || c.gnaf_id || "Unnamed address",
+        c.property_type ? el("small", {}, c.property_type) : null,
+      );
+      button.addEventListener("click", () => pick(c));
+      return el("li", {}, button);
+    }),
   );
-  for (const pillar of result.match.pillars) {
-    const block = element("details", "pillar");
-    block.append(element("summary", "", `${pillar.label}: ${pillar.score}`), element("div", "muted", pillar.summary));
-    for (const factor of pillar.factors) {
-      block.append(element("div", "factor", `${factor.label}: ${factor.value}. ${factor.detail}`));
+}
+
+function pick(candidate) {
+  if (tabId === null) return;
+  closePicker();
+  const name = candidate.display_name || candidate.address || null;
+  showLoading(name || candidate.gnaf_id);
+  // API_CONTRACT: once the user has picked a candidate, send its gnaf_id (alone, so the backend never
+  // re-geocodes the candidate's name). The name travels only as the label the panel shows.
+  const body = candidate.gnaf_id ? { gnaf_id: candidate.gnaf_id, address: null, label: name } : { gnaf_id: null, address: name };
+  send({ type: "manual-match", tabId, body });
+}
+
+function showLoading(query) {
+  setState("loading");
+  bind("query", query || "this home");
+  bind("status", `Checking ${query || "this home"}`);
+  // background.js normally writes a loading record at once; re-read in case the answer came from its cache.
+  setTimeout(refresh, 1500);
+}
+
+function listingLine(adapted) {
+  const query = adapted.query;
+  const request = stored?.request || {};
+  if (request.gnaf_id) {
+    return query && query !== request.gnaf_id ? `Listing: ${query} · you picked this home` : "Listing: picked from the candidates";
+  }
+  if (!query) return "Listing: address not known";
+  const pickedAddress = userPick?.body && !userPick.body.gnaf_id ? userPick.body.address : null;
+  if (typed.has(norm(query)) || (pickedAddress && norm(pickedAddress) === norm(request.address))) return `Listing: ${query} · typed by you`;
+  return `Listing: ${query} · read from the page`;
+}
+
+function propertyLine(property) {
+  if (!property) return "";
+  const bits = [];
+  if (property.bed_count !== null && property.bed_count !== undefined) bits.push(`${property.bed_count} bed`);
+  if (property.bath_count !== null && property.bath_count !== undefined) bits.push(`${property.bath_count} bath`);
+  if (property.parking_count !== null && property.parking_count !== undefined) bits.push(`${property.parking_count} parking`);
+  if (property.dwelling_type) bits.push(String(property.dwelling_type));
+  return bits.length ? bits.join(" · ") : "Bed, bath and parking: no data";
+}
+
+function renderNotices(adapted, result) {
+  const box = slot("notices");
+  const items = [];
+  for (const d of adapted.backend?.dealbreakers || []) {
+    if (d.message) items.push(el("li", { className: "mm-notice", dataset: { kind: "dealbreaker" } }, el("strong", { className: "mm-notice__tag" }, "Dealbreaker"), " ", d.message));
+  }
+  for (const gap of adapted.backend?.data_gaps || []) {
+    items.push(el("li", { className: "mm-notice", dataset: { kind: "gap" } }, gap));
+  }
+  const nodes = [];
+  if (items.length) nodes.push(el("ul", { className: "mm-notices" }, ...items));
+  const missing = result?.missing || [];
+  if (missing.length) {
+    const { scored = 0, total = 0 } = result.coverage || {};
+    const details = el(
+      "details",
+      { className: "mm-missing" },
+      el("summary", {}, `Not scored: ${missing.length} signal${missing.length === 1 ? "" : "s"} had no data (${scored} of ${total} scored). Missing data is skipped, never counted as zero.`),
+      el(
+        "ul",
+        { className: "mm-gaps" },
+        ...missing.map((m) => el("li", {}, `${m.label || m.key}: ${m.reason || "no data"}`)),
+      ),
+    );
+    nodes.push(details);
+  }
+  box.replaceChildren(...nodes);
+}
+
+function renderMatched(adapted) {
+  const matched = adapted.matched || {};
+  bind("address", matched.display_name || "Address not returned");
+  bind("listing", listingLine(adapted));
+  const conf = document.querySelector('[data-bind="confidence"]');
+  conf.textContent = CONFIDENCE_TEXT[matched.confidence] || "";
+  if (matched.confidence) conf.dataset.confidence = matched.confidence;
+  else delete conf.dataset.confidence;
+  bind("facts", propertyLine(adapted.property));
+  // README rule: every number on screen shows its source.
+  const factsNode = document.querySelector('[data-bind="facts"]');
+  if (factsNode) {
+    if (adapted.property) factsNode.append(el("span", { className: "mm-addr__src", title: BASICS_SOURCE }, " · source: basics/all"));
+    factsNode.title = adapted.property ? `Source: ${BASICS_SOURCE}` : "";
+  }
+  candidateList(slot("candidates"), adapted.candidates || matched.candidates || [], matched.gnaf_id);
+
+  const result = scoreListing(adapted, profile);
+  const gauge = { fit: result.fit, band: result.band, coverage: result.coverage };
+  if (handles.speedo) handles.speedo.update(gauge);
+  else handles.speedo = renderSpeedo(slot("speedo"), gauge);
+  slot("verdict").textContent = verdictSentence({ halos: result.halos, failos: result.failos, fit: result.fit, band: result.band });
+
+  renderNotices(adapted, result);
+
+  const halosData = { halos: result.halos, failos: result.failos, fetchedAt: adapted.fetchedAt };
+  if (handles.halos) handles.halos.update(halosData);
+  else handles.halos = renderHalos(slot("halos"), halosData);
+
+  if (handles.sliders) handles.sliders.update({ dimensions: result.dimensions });
+  else handles.sliders = renderSliders(slot("sliders"), { dimensions: result.dimensions });
+
+  if (handles.profile) handles.profile.update(profile);
+  else handles.profile = renderProfile(slot("profile"), profile, { onOpenOnboarding: openOnboarding });
+
+  const fitText = result.fit === null ? "Not scored yet" : `Fit ${result.fit} of 100, ${BAND_WORD[result.band] || ""}`;
+  bind("status", `Matched ${matched.display_name || "a home"}. ${fitText}.`);
+}
+
+function render() {
+  let adapted;
+  try {
+    adapted = adapt(stored);
+  } catch (error) {
+    adapted = { status: "error", message: `The panel could not read this answer (${error?.message || error}).`, mock: false };
+  }
+  let state = STATES.has(adapted.status) ? adapted.status : "error";
+  clearTimeout(stallTimer);
+  if (state === "loading") {
+    const started = Date.parse(stored?.startedAt || "");
+    if (Number.isFinite(started) && Date.now() - started > STALL_MS) {
+      // The service worker was stopped mid-fetch (its in-memory request died with it).
+      state = "error";
+      adapted = { ...adapted, status: "error", message: "This check stopped before it finished.", code: "stalled" };
+    } else {
+      stallTimer = setTimeout(refresh, (Number.isFinite(started) ? Math.max(0, started + STALL_MS - Date.now()) : STALL_MS) + 1000);
     }
-    view.append(block);
+  }
+  mockBadge.hidden = !adapted.mock;
+  const fetched = adapted.fetchedAt ? new Date(adapted.fetchedAt) : null;
+  // The footer's as-of: when these facts were fetched (no backend factor carries its own date yet).
+  // Only for a scored home; an error or "outside coverage" answer has no facts to date.
+  bind(
+    "asof",
+    state === "matched" && fetched && !Number.isNaN(fetched.getTime())
+      ? ` · Fetched ${fetched.toLocaleString("en-AU", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" })}`
+      : "",
+  );
+
+  if (state === "matched") {
+    try {
+      renderMatched(adapted);
+    } catch (error) {
+      state = "error";
+      adapted = { ...adapted, message: `The panel could not score this home (${error?.message || error}).` };
+    }
+  }
+  setState(state);
+
+  if (state === "loading") {
+    bind("query", adapted.query || "this home");
+    bind("status", `Checking ${adapted.query || "this home"}`);
+  } else if (state === "ambiguous") {
+    candidateList(slot("ambiguous-list"), adapted.candidates || [], null);
+    bind("status", `Which home is this? ${adapted.candidates?.length || 0} candidates.`);
+  } else if (state === "no_match") {
+    const section = view.querySelector('[data-for="no_match"]');
+    let list = section.querySelector('ul[data-list="no-match"]');
+    if (!list) {
+      // Same data-slot as the ambiguous list so it gets the candidate-row styling; it sits later in the DOM,
+      // so slot("ambiguous-list") still finds the ambiguous section's list first.
+      list = el("ul", { "data-slot": "ambiguous-list", "data-list": "no-match", "aria-label": "Closest addresses" });
+      section.append(list);
+    }
+    candidateList(list, adapted.candidates || [], null);
+    bind("status", "We couldn't find that address.");
+  } else if (state === "out_of_area") {
+    bind("message", adapted.message || "MicroMatch covers the City of Sydney only for now.");
+    bind("status", "Outside the City of Sydney.");
+  } else if (state === "error") {
+    bind("error", [adapted.message, adapted.code ? `(${adapted.code})` : null].filter(Boolean).join(" "));
+    bind("status", "We couldn't check this home.");
+  } else if (state === "need_address") {
+    bind("status", "No address on this page. Type it below.");
+  } else if (state === "empty") {
+    bind("status", "Open a listing to see how well it fits you.");
   }
 }
 
-function renderCandidates(result) {
-  view.append(element("p", "", "Which home is this?"));
-  for (const candidate of result.candidates) {
-    const button = element("button", "candidate", candidate.address);
-    button.onclick = async () => {
-      chrome.runtime.sendMessage({
-        type: "manual-match",
-        tabId: await activeTabId(),
-        body: { gnaf_id: candidate.gnaf_id, address: candidate.address },
-      });
-    };
-    view.append(button);
-  }
+// ---------- picker ----------
+
+function closePicker() {
+  if (!picker || picker.hidden) return;
+  picker.hidden = true;
+  pickerToggle?.setAttribute("aria-expanded", "false");
 }
 
-async function render() {
-  const tabId = await activeTabId();
-  const stored = await chrome.storage.session.get(`tab:${tabId}`);
-  const result = stored[`tab:${tabId}`];
-  view.replaceChildren();
-  if (!result) view.append(element("p", "muted", "Open a listing on realestate.com.au or domain.com.au."));
-  else if (result.status === "loading") view.append(element("p", "muted", `Checking ${result.query}…`));
-  else if (result.status === "matched") renderMatched(result);
-  else if (result.status === "ambiguous") renderCandidates(result);
-  else if (result.status === "no_match") view.append(element("p", "", "We couldn't find that address."));
-  else view.append(element("p", "", result.message));
-}
-
-document.getElementById("manual").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const address = document.getElementById("address").value.trim();
-  if (address) chrome.runtime.sendMessage({ type: "manual-match", tabId: await activeTabId(), body: { address } });
+pickerToggle?.addEventListener("click", () => {
+  const open = picker.hidden;
+  picker.hidden = !open;
+  pickerToggle.setAttribute("aria-expanded", String(open));
+  if (open && !slot("candidates").children.length) input?.focus(); // no alternatives: go straight to the type-it box
 });
 
-chrome.storage.session.onChanged.addListener(render);
-chrome.tabs.onActivated.addListener(render);
-chrome.tabs.onUpdated.addListener(render);
-render();
+// ---------- actions ----------
+
+document.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target.closest("[data-action]") : null;
+  if (!target) return;
+  const action = target.dataset.action;
+  if (action === "open-onboarding") openOnboarding();
+  else if (action === "retry" && tabId !== null) {
+    showLoading(stored?.query || stored?.request?.address || null);
+    send({ type: "retry", tabId });
+  }
+});
+
+form?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const address = String(input?.value || "").replace(/\s+/g, " ").trim();
+  if (!address || tabId === null) return;
+  typed.add(norm(address));
+  showLoading(address);
+  send({ type: "manual-match", tabId, body: { address, gnaf_id: null } });
+});
+
+// ---------- live updates ----------
+
+chrome.storage.session.onChanged.addListener((changes) => {
+  if (tabId !== null && `tab:${tabId}` in changes) refresh();
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && "profile" in changes) refresh();
+});
+chrome.tabs.onActivated.addListener(() => {
+  if (pinnedTabId === null) refresh();
+});
+chrome.tabs.onUpdated.addListener((id, changeInfo) => {
+  if (id === tabId && (changeInfo.status || changeInfo.url)) refresh();
+});
+try {
+  chrome.windows?.onFocusChanged?.addListener(() => {
+    if (pinnedTabId === null) refresh();
+  });
+} catch {
+  // windows API not available here: the tab listeners still cover it.
+}
+
+refresh();
