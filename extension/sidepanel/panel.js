@@ -8,6 +8,7 @@ import { scoreListing } from "./score.js";
 import { renderFit } from "./fit.js";
 import { loadProfile, openOnboarding, renderProfile } from "./profile.js";
 import { initAccount } from "./account.js";
+import { SITE_URL } from "../src/config.js";
 
 const STATES = new Set(["empty", "loading", "need_address", "matched", "ambiguous", "no_match", "out_of_area", "error"]);
 // background.js gives up on a fetch after 25 s; a "checking" record older than this has lost its worker.
@@ -34,7 +35,7 @@ const pinnedTabId = (() => {
 let tabId = pinnedTabId;
 let stored = null;
 let userPick = null; // background's "pick:<id>": the address the user typed or picked for this page
-let profile = null;
+let profile = null; // the user's own quiz profile; null = none saved (no default persona, no score)
 let refreshSeq = 0;
 let stallTimer = null;
 const typed = new Set(); // addresses typed into the box this session, so the listing line can say so
@@ -197,6 +198,39 @@ function renderNotices(adapted, result) {
   box.replaceChildren(...nodes);
 }
 
+// No profile in chrome.storage.local: the matched address plus one "Take the quiz" button. No speedo,
+// pros/cons, sliders or numbers. A profile arriving (storage.onChanged "profile") re-renders the fit.
+function renderNoProfile(matched) {
+  bind("facts", "");
+  const factsNode = document.querySelector('[data-bind="facts"]');
+  if (factsNode) factsNode.title = "";
+  handles.fit = null;
+  handles.profile = null;
+  slot("fit").replaceChildren(
+    el(
+      "div",
+      { className: "mm-quiz-cta", dataset: { state: "no-profile" } },
+      el("p", { className: "mm-quiz-cta__title" }, "Take the quiz to see your fit"),
+      el("p", { className: "mm-quiz-cta__text" }, "Your fit is weighed by your own quiz answers. Take it once and every listing is scored for you."),
+      el("button", { type: "button", className: "mm-btn", dataset: { action: "open-quiz" } }, "Take the quiz"),
+    ),
+  );
+  slot("notices").replaceChildren();
+  slot("profile").replaceChildren();
+  bind("status", `Matched ${matched.display_name || "a home"}. Take the quiz to see your fit.`);
+}
+
+function openQuiz() {
+  const url = `${SITE_URL}/quiz`;
+  try {
+    if (chrome?.tabs?.create) return chrome.tabs.create({ url }).catch(() => {});
+  } catch {
+    // not inside the extension: fall through to a plain new tab
+  }
+  window.open(url, "_blank", "noopener");
+  return Promise.resolve();
+}
+
 function renderMatched(adapted) {
   const matched = adapted.matched || {};
   bind("address", matched.display_name || "Address not returned");
@@ -214,8 +248,10 @@ function renderMatched(adapted) {
   }
   candidateList(slot("candidates"), adapted.candidates || matched.candidates || [], matched.gnaf_id);
 
+  if (!profile) return renderNoProfile(matched);
+
   const result = scoreListing(adapted, profile);
-  const options = { trusted: matched.confidence === "exact", identity: matched.gnaf_id || matched.display_name };
+  const options = { trusted: matched.confidence === "exact", identity: matched.gnaf_id || matched.display_name, profile };
   if (handles.fit) handles.fit.update(result, options);
   else handles.fit = renderFit(slot("fit"), result, options);
 
@@ -252,7 +288,7 @@ function render() {
   // Only for a scored home; an error or "outside coverage" answer has no facts to date.
   bind(
     "asof",
-    state === "matched" && fetched && !Number.isNaN(fetched.getTime())
+    state === "matched" && profile && fetched && !Number.isNaN(fetched.getTime())
       ? ` · Fetched ${fetched.toLocaleString("en-AU", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" })}`
       : "",
   );
@@ -329,6 +365,7 @@ document.addEventListener("click", (event) => {
   if (!target) return;
   const action = target.dataset.action;
   if (action === "open-onboarding") openOnboarding();
+  else if (action === "open-quiz") openQuiz();
   else if (action === "retry" && tabId !== null) {
     showLoading(stored?.query || stored?.request?.address || null);
     send({ type: "retry", tabId });
