@@ -152,3 +152,25 @@ Skipped:
 - **Removing `basics/all`, `comparables` and `da-list` from the lookup.** The user asked to keep the proxy as built, and the review made this conditional on their agreement.
 - **Returning partial facts when the app-level timeout fires.** The review marked this optional. Fixes 1 and 5 already keep the workplace and a slow lookup from emptying the facts.
 - **Panel height at 1440x900 (Visual review item 2).** Not changed. In mock mode the weak-match box is 5-6 lines; a live exact match is one line. The new Meh group adds about 70-130 px. The footer still scrolls into view, and the harness checks that.
+
+## Contract 2 headed Chromium check
+
+Run 7 Nov 2026, 12:52 pm (Sydney) with the unchanged unpacked extension. Its configured port is 8787, so the harness starts the same Contract 2 app on that port. Listing documents were tested with subresources blocked. No screenshots or listing documents were saved.
+
+| Listing | Page | Extension state | Contract 2 match | Signals available |
+| --- | --- | --- | --- | --- |
+| [rent · Redfern](https://www.domain.com.au/17-young-street-redfern-nsw-2016-17875055) | live HTTP 403; archive replay | result:unknown | 17 Young Street, Redfern (exact) | 16/18 (extension) |
+| [rent · Ultimo](https://www.realestate.com.au/property-apartment-nsw-ultimo-426000942) | live HTTP 429; archive replay | result:unknown | No match (extension) | 0/18 (extension) |
+| [rent · Zetland](https://www.domain.com.au/59-portman-street-zetland-nsw-2017-17904853) | live HTTP 403; archive replay | result:unknown | 59 Portman Street, Zetland (exact) | 16/18 (extension) |
+| [sale · Surry Hills](https://www.realestate.com.au/property-apartment-nsw-surry+hills-147399572) | live HTTP 429; archive replay | result:unknown | UNIT 8/342 Bourke Street, Surry Hills (exact) | 15/18 (extension) |
+| [sale · Pyrmont](https://www.realestate.com.au/property-apartment-nsw-pyrmont-143367376) | live HTTP 429; archive replay | result:unknown | UNIT 801/8 Darling Island Road, Pyrmont (exact) | 15/18 (extension) |
+| [sale · Glebe](https://www.domain.com.au/110-11-wigram-lane-glebe-nsw-2037-2020659759) | live HTTP 403; archive replay | result:unknown | UNIT 110/11 Wigram Lane, Glebe (NSW) (exact) | 14/18 (extension) |
+
+- **rent · Redfern:** no matched address shown in panel. Unavailable: safety.hazards, safety.socialHousing.
+- **rent · Ultimo:** no proxy match for “504/349-355 Bulwara Road, Ultimo, NSW 2007”; no matched address shown in panel. Unavailable: commute.nearestTransport, commute.workDistance, commute.cbdDistance, commute.parking, commute.roadNoise, safety.blockCrime, safety.livability, safety.hazards, safety.socialHousing, lifestyle.dailyAmenities, lifestyle.nightlife, lifestyle.greenSpace, price.rentAffordability, price.buyAffordability, price.comparableValue, price.runningCosts, price.developmentPressure, price.negotiatingRoom.
+- **rent · Zetland:** no matched address shown in panel. Unavailable: safety.hazards, safety.socialHousing.
+- **sale · Surry Hills:** no matched address shown in panel. Unavailable: safety.hazards, safety.socialHousing, price.rentAffordability.
+- **sale · Pyrmont:** no matched address shown in panel. Unavailable: safety.socialHousing, price.buyAffordability, price.comparableValue.
+- **sale · Glebe:** no matched address shown in panel. Unavailable: safety.hazards, safety.socialHousing, price.buyAffordability, price.comparableValue.
+
+The existing panel expects a top-level `status` and the older facts format. Contract 2 supplies `matched`, `facts`, and `outsideCoverage`; the panel therefore reports an unknown response. This is an extension integration finding.
